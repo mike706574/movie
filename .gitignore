@@ -1,0 +1,20 @@
+/target
+/lib
+/classes
+/checkouts
+pom.xml
+/resources/public/client.js
+/resources/public/js
+*.jar
+*.class
+.lein-deps-sum
+.lein-failures
+.lein-plugins
+.lein-env
+.nrepl-port
+.lein-repl-history
+
+# Elastic Beanstalk Files
+.elasticbeanstalk/*
+!.elasticbeanstalk/*.cfg.yml
+!.elasticbeanstalk/*.global.yml
