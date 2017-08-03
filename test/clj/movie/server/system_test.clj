@@ -37,4 +37,6 @@
                      (client/authenticate {:movie/username "mike"
                                            :movie/password "rocket"}))]
 
-      (is (= 1 1)))))
+      (is (= 1 1))))
+
+  )

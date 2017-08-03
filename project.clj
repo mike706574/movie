@@ -17,6 +17,7 @@
                  [byte-streams "0.2.3"]
                  [environ "1.1.0"]
                  [clj-time "0.14.0"]
+                 [clj-http "3.6.1"]
 
                  ;; Messaging
                  [com.rabbitmq/amqp-client "4.2.0"]
