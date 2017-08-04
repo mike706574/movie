@@ -18,6 +18,11 @@
              :movie/port port
              :movie/log-path "/tmp"
              :movie/user-manager-type :atomic
+             :movie/movie-storage-type :atomic
+             :movie/moviedb-config {:movie-api-url "https://api.themoviedb.org/3"
+                                    :movie-api-key "7197608cef1572f5f9e1c5b184854484"
+                                    :movie-api-retry-options {:initial-wait 0
+                                                              :max-attempts 3}}
              :movie/websocket-content-type content-type
              :movie/users {"mike" "rocket"}})
 
@@ -29,6 +34,7 @@
          ~'text (util/pretty ~'response)]
      ~@body))
 
+(log/set-level! :debug)
 (deftest simple-test
   (with-system (system/system config)
     (let [client (-> {:host (str "localhost:" port)
@@ -36,7 +42,8 @@
                      (client/client)
                      (client/authenticate {:movie/username "mike"
                                            :movie/password "rocket"}))]
+      (unpack-response (client/moviedb-search client "fantasia" 1)
+        (is (= status 200))
 
-      (is (= 1 1))))
-
+        )))
   )

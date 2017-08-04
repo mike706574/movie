@@ -36,7 +36,8 @@
 (defn http-url [host] (str "http://" host))
 
 (defprotocol Client
-  (authenticate [this credentials]))
+  (authenticate [this credentials])
+  (moviedb-search [this title page]))
 
 (defrecord ServiceClient [host content-type token]
   Client
@@ -47,7 +48,13 @@
                                 :body (message/encode content-type credentials)
                                 :throw-exceptions false})]
       (when (= (:status response) 201)
-        (assoc this :token (-> response :body slurp))))))
+        (assoc this :token (-> response :body slurp)))))
+
+  (moviedb-search [this title page]
+    (parse @(http/get (str (http-url host) "/moviedb/movies")
+                      {:headers {"Accept" "application/json"}
+                       :query-params {:title title
+                                      :page page}}))))
 
 (defn client
   [{:keys [host content-type]}]

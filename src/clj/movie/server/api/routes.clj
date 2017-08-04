@@ -2,6 +2,7 @@
   (:require [movie.users :as users]
             [movie.server.api.websocket :as websocket]
             [movie.server.authentication :as auth]
+            [movie.search :as search]
             [boomerang.http :refer [with-body
                                     handle-exceptions
                                     body-response
@@ -15,12 +16,28 @@
             [compojure.route :as route]
             [taoensso.timbre :as log]))
 
+(defn status-code
+  [status]
+  (if (= status :ok)
+    200
+    500))
+
+(defn search-moviedb
+  [{:keys [movie-searcher]} request]
+  (handle-exceptions request
+    (or (unsupported-media-type request)
+        (let [{:strs [title page]} (:query-params request)
+              {:keys [status body]} (search/search movie-searcher title page)]
+          (body-response (status-code status) request body)))))
+
 (defn routes
   [{:keys [user-manager authenticator] :as deps}]
   (letfn [(unauthenticated [request]
             (when-not (auth/authenticated? authenticator request)
               {:status 401}))]
     (compojure/routes
+     (GET "/moviedb/movies" request
+          (search-moviedb deps request))
      (POST "/api/tokens" request
            (try
              (or (not-acceptable request #{"text/plain"})

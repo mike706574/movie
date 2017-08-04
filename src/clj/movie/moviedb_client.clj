@@ -33,7 +33,7 @@
   (get-movie [this id])
   (search-movies [this query] [this query page]))
 
-(defrecord TMDbMovieClient [url api-key retry-options]
+(defrecord TMDb3MovieClient [url api-key retry-options]
   MovieClient
   (get-config [this]
     (let [url (str url "/configuration")]
@@ -46,8 +46,7 @@
 
   (search-movies
     [this query]
-    (let [url (str url "/search/movie")]
-      (get-request url {"query" query "api_key" api-key} retry-options)))
+    (search-movies this query 1))
 
   (search-movies
     [this query page]
@@ -56,7 +55,7 @@
 
 (defn client
   [{:keys [movie-api-url movie-api-key movie-api-retry-options]}]
-  (map->TMDbMovieClient {:url movie-api-url
+  (map->TMDb3MovieClient {:url movie-api-url
                          :api-key movie-api-key
                          :retry-options movie-api-retry-options}))
 

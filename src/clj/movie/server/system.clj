@@ -4,9 +4,13 @@
             [movie.server.authentication :as auth]
             [movie.users :as users]
             [movie.util :as util]
+            [movie.moviedb-client :as moviedb-client]
+            [movie.search :as search]
             [movie.server.connection :as conn]
             [movie.server.handler :as server-handler]
             [movie.server.service :as service]
+            [movie.storage :as storage]
+            [movie.storage.atomic]
             [clojure.spec.alpha :as s]
             [com.stuartsierra.component :as component]
             [taoensso.timbre :as log]
@@ -24,11 +28,14 @@
 (s/def :movie/log-path string?)
 (s/def :movie/websocket-content-type string?)
 (s/def :movie/user-manager-type #{:atomic})
+(s/def :movie/movie-storage-type #{:atomic})
 (s/def :movie/users (s/map-of :movie/username :movie/password))
+(s/def :movie/moviedb-config map?)
 (s/def :movie/config (s/keys :req [:movie/id
                                    :movie/port
                                    :movie/log-path
                                    :movie/user-manager-type
+                                   :movie/movie-storage-type
                                    :movie/websocket-content-type]
                              :opt [:movie/users]))
 
@@ -36,12 +43,14 @@
   [config]
   (log/info (str "Building " (:movie/id config) "."))
   (configure-logging! config)
-  {:movie-manager nil
+  {:movie-storage (storage/movie-storage config)
 
    ;; User storage
    :user-manager (users/user-manager config)
 
    :event-bus (bus/event-bus)
+   :moviedb-client (moviedb-client/client (:movie/moviedb-config config))
+   :movie-searcher (search/searcher config)
 
    ;; HTTP
    :authenticator (auth/authenticator config)
