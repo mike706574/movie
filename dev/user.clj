@@ -24,28 +24,42 @@
    [manifold.bus :as bus]
    [taoensso.timbre :as log]
 
+   [clojure.java.jdbc :as jdbc]
+
    [movie.client :as client]
    [movie.users :as users]
    [movie.server.system :as system]
+
+   [movie.search :as search]
+   [movie.storage :as storage]
+   [movie.storage.postgres]
+   [movie.file :as file]
    [boomerang.message :as message]))
 
-(log/set-level! :trace)
-
+(log/set-level! :debug)
 (stest/instrument)
 
 (def port 8001)
 (def content-type "application/transit+json")
+
+(def db
+  {:dbtype "postgresql"
+   :dbname "movie"
+   :host "localhost"
+   :user "postgres"
+   :password "postgres"})
 
 (def config {:movie/id "movie-server"
              :movie/port port
              :movie/log-path "/tmp"
              :movie/secret-key "secret"
              :movie/websocket-content-type content-type
-             :movie/movie-storage-type :atomic
+             :movie/movie-storage-type :postgres
+             :movie/movie-storage-database db
              :movie/moviedb-config {:movie-api-url "https://api.themoviedb.org/3"
                                     :movie-api-key "7197608cef1572f5f9e1c5b184854484"
-                                    :movie-api-retry-options {:initial-wait 0
-                                                              :max-attempts 3}}
+                                    :movie-api-retry-options {:initial-wait 1000
+                                                              :max-attempts 20}}
              :movie/user-manager-type :atomic
              :movie/users {"mike" "rocket"}})
 
@@ -98,12 +112,48 @@
   (stop)
   (go))
 
-(comment
-  (-> {:host (str "localhost:" port)
-       :content-type content-type}
-      (client/client)
-      (client/authenticate {:movie/username "mike"
-                            :movie/password "rocket"})
-      (client/create-event {:movie/category "foo" :count 4}))
+(def searcher (:movie-searcher system))
+(def storage (:movie-storage system))
 
+(defn load-all
+  [searcher path]
+  (map
+   (fn [movie]
+     (-> movie
+         (merge (search/feeling-lucky searcher (:title movie)))
+         (assoc :watched [])))
+   (file/load path)))
+
+(def client #(-> {:host (str "localhost:" port)
+                  :content-type content-type}
+                 (client/client)
+                 (client/authenticate {:movie/username "mike"
+                                       :movie/password "rocket"})))
+
+
+(def storage #(:movie-storage system))
+
+(comment
+  (client/get-movies (client))
+
+  (storage/unwatched! (storage) "1" "mike")
+
+  (storage/clear! (storage))
+
+  (storage/get-page (storage) 0)
+
+  (doseq [movie (load-all searcher "/media/mike/Clone/Video")]
+    (storage/add-movie! (storage) movie)
+    (println (:title movie)))
+
+  (def akira (first (load-all searcher "dev-resources/movies")))
+
+  akira
+
+  (storage/add-movie! storage akira)
+
+  (storage/get-movies storage)
+
+  (jdbc/query db ["select count(*) from movie"])
+  system
   )

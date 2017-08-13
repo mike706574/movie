@@ -7,8 +7,15 @@
 
 (defprotocol MovieStorage
   "Abstraction around movie storage."
-  (get-movies [this] "Gets all movies.")
-  (add-movie! [this movie] "Adds a movie."))
+  (get-movie [this id])
+  (get-movies [this])
+  (get-page [this page-number])
+  (get-movies-by-letter [this letter])
+  (get-page-by-letter [this letter page-number])
+  (watched! [this id user])
+  (unwatched! [this id user])
+  (add-movie! [this movie])
+  (clear! [this]))
 
 (s/def :movie/movie-storage (partial satisfies? MovieStorage))
 

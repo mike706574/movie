@@ -2,41 +2,35 @@
   (:require [clojure.set :as set]
             [clojure.string :as str]
             [com.stuartsierra.component :as component]
-            [taoensso.timbre :as log]
-            [movie.moviedb-client :as moviedb]))
+            [movie.moviedb-client :as moviedb]
+            [taoensso.timbre :as log]))
 
 (defprotocol MovieSearcher
   (search [this query] [this query page]))
 
-(defn parse-date
-  [date]
-  (when-not (str/blank? date)
-    (.parse (java.text.SimpleDateFormat. "yyyy-MM-dd") date)))
+(def ^:private key-mapping {:title :tmdb-title
+                            :id :tmdb-id
+                            :imdb_id :imdb-id
+                            :release_date :release-date
+                            :overview :overview
+                            :backdrop_path :backdrop-path})
 
-(def key-mapping {:title :tmdb-title
-                  :id :tmdb-id
-                  :imdb_id :imdb-id
-                  :release_date :release-date
-                  :overview :overview
-                  :backdrop_path :backdrop-path})
-
-(defn movie [movie]
+(defn ^:private movie [movie]
   (-> movie
       (select-keys (keys key-mapping))
-      (set/rename-keys key-mapping)
-;;      (update :release-date parse-date)
-      ))
+      (set/rename-keys key-mapping)))
 
 (defn ^:private search*
   ([client title]
    (search* client title 1))
   ([client title page-number]
    (let [response (moviedb/search-movies client title page-number)]
-     (when (= :ok (:status response))
-         (-> response
-             (update :body #(set/rename-keys % {:total_results :total-results
-                                                :total_pages :total-pages}))
-             (update-in [:body :results] (partial map movie)))))))
+     (if (= :ok (:status response))
+       (-> response
+           (update :body #(set/rename-keys % {:total_results :total-results
+                                              :total_pages :total-pages}))
+           (update-in [:body :results] (partial map movie)))
+       response))))
 
 (defrecord TMDbMovieSearcher [client]
   MovieSearcher
@@ -51,7 +45,8 @@
   (let [{:keys [status body] :as response} (search searcher title page-number)]
     (if (= status :ok)
       body
-      (throw (Exception. (str "Search request returned status " status "."))))))
+      (do (log/error response)
+        (throw (ex-info (str "Search for \"" title "\", page " page-number " failed.") response))))))
 
 (defn ^:private lazy-search*
   [searcher title data]
@@ -67,6 +62,10 @@
   [searcher title]
   (lazy-search* searcher title (search-and-throw! searcher title 1)))
 
+(defn feeling-lucky
+  [searcher title]
+  (first (:results (search-and-throw! searcher title 1))))
+
 (defn from-client
   [client]
   (map->TMDbMovieSearcher {:client client}))
@@ -74,15 +73,3 @@
 (defn searcher
   [config]
   (component/using (map->TMDbMovieSearcher {}) {:client :moviedb-client}))
-
-(comment
-  (def config {:movie-api-url "https://api.themoviedb.org/3"
-               :movie-api-key "7197608cef1572f5f9e1c5b184854484"
-               :movie-api-retry-options {:initial-wait 0
-                                         :max-attempts 3}})
-
-  (def client (moviedb/client config))
-  (def searcher (from-client client))
-
-  (count (search searcher "blue"))
-  )

@@ -24,7 +24,7 @@
   [deps]
   (-> (api-routes/routes deps)
       (wrap-cors :access-control-allow-origin [#".*"]
-                 :access-control-allow-methods [:get :put :post :delete])
+                 :access-control-allow-methods [:get :put :post :patch :delete])
       (wrap-params)
       (wrap-defaults api-defaults)
       (wrap-logging)))

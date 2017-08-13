@@ -13,5 +13,4 @@
   `(let [~'system (component/start-system ~system-map)]
      (try
        ~@body
-       ~'system
        (finally (component/stop-system ~'system)))))

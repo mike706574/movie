@@ -28,7 +28,7 @@
 (s/def :movie/log-path string?)
 (s/def :movie/websocket-content-type string?)
 (s/def :movie/user-manager-type #{:atomic})
-(s/def :movie/movie-storage-type #{:atomic})
+(s/def :movie/movie-storage-type #{:atomic :postgres})
 (s/def :movie/users (s/map-of :movie/username :movie/password))
 (s/def :movie/moviedb-config map?)
 (s/def :movie/config (s/keys :req [:movie/id

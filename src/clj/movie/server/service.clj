@@ -1,9 +1,9 @@
 (ns movie.server.service
-  (:require [com.stuartsierra.component :as component]
-            [taoensso.timbre :as log]
-            [aleph.http :as aleph-http]
+  (:require [aleph.http :as aleph-http]
+            [com.stuartsierra.component :as component]
             [movie.server.connection :as conn]
-            [movie.server.handler :as handler])
+            [movie.server.handler :as handler]
+            [taoensso.timbre :as log])
   (:gen-class :main true))
 
 (defn- already-started

@@ -1,10 +1,10 @@
 (ns movie.client
   (:require [aleph.http :as http]
-            [manifold.stream :as s]
             [boomerang.message :as message]
+            [manifold.stream :as s]
             [movie.users :as users]))
 
-(def content-type "application/transit+json")
+(def content-type "application/json")
 
 (defn parse
   [response]
@@ -37,6 +37,9 @@
 
 (defprotocol Client
   (authenticate [this credentials])
+  (get-movies [this])
+  (update-movie! [this id changes])
+  (add-movie! [this movie])
   (moviedb-search [this title page]))
 
 (defrecord ServiceClient [host content-type token]
@@ -50,11 +53,29 @@
       (when (= (:status response) 201)
         (assoc this :token (-> response :body slurp)))))
 
+  (get-movies [this]
+    (parse @(http/get (str (http-url host) "/api/movies")
+                      {:headers {"Accept" "application/json"}
+                       :throw-exceptions false})))
+
+  (update-movie! [this id changes]
+    (parse @(http/patch (str (http-url host) (str "/api/movies/" (name id)))
+                        {:headers {"Accept" "application/json"}
+                         :body (message/encode content-type changes)
+                         :throw-exceptions false})))
+
+  (add-movie! [this movie]
+    (parse @(http/post (str (http-url host) (str "/api/movies"))
+                       {:headers {"Accept" "application/json"}
+                        :body (message/encode content-type movie)
+                        :throw-exceptions false})))
+
   (moviedb-search [this title page]
     (parse @(http/get (str (http-url host) "/moviedb/movies")
                       {:headers {"Accept" "application/json"}
                        :query-params {:title title
-                                      :page page}}))))
+                                      :page page}
+                       :throw-exceptions false}))))
 
 (defn client
   [{:keys [host content-type]}]

@@ -56,6 +56,7 @@
         (if (retry? output)
           (if (> i max-attempts)
             (do (log/error (str "Failed after " max-attempts" attempts."))
+                (log/error (str "Final output: " output))
                 output)
             (do (log/warn (str "Attempt " i " of " max-attempts " failed. Sleeping for " wait " ms."))
                 (Thread/sleep wait)

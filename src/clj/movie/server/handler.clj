@@ -12,6 +12,7 @@
                                  event-bus
                                  user-manager
                                  movie-searcher
+                                 movie-storage
                                  websocket-content-type]
   HandlerFactory
   (handler [this]
@@ -21,4 +22,4 @@
   [{:keys [:movie/websocket-content-type]}]
   (component/using
    (map->BottleHandlerFactory {:websocket-content-type websocket-content-type})
-   [:authenticator :conn-manager :event-bus :movie-searcher :user-manager]))
+   [:authenticator :conn-manager :event-bus :movie-searcher :movie-storage :user-manager]))

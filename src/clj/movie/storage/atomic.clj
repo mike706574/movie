@@ -4,11 +4,16 @@
 
 (defrecord AtomicMovieStorage [counter movies]
   MovieStorage
+  (get-movie [this id]
+    (get @movies id))
+
   (get-movies [this]
-    @movies)
+    (map (fn [[k v]] (assoc v :id k)) @movies))
 
   (add-movie! [this movie]
-    (swap! movies assoc (str (swap! counter inc)) movies)))
+    (let [id (str (swap! counter inc))]
+      (swap! movies assoc id movie)
+      (assoc (get @movies id) :id id))))
 
 (defmethod movie-storage :atomic
   [config]
