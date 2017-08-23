@@ -37,7 +37,7 @@
 
 (defprotocol Client
   (authenticate [this credentials])
-  (get-movies [this])
+  (get-movies [this params])
   (update-movie! [this id changes])
   (add-movie! [this movie])
   (moviedb-search [this title page]))
@@ -53,9 +53,10 @@
       (when (= (:status response) 201)
         (assoc this :token (-> response :body slurp)))))
 
-  (get-movies [this]
+  (get-movies [this params]
     (parse @(http/get (str (http-url host) "/api/movies")
                       {:headers {"Accept" "application/json"}
+                       :query-params params
                        :throw-exceptions false})))
 
   (update-movie! [this id changes]

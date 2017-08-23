@@ -15,7 +15,7 @@
 
 (defn delete-recursively
   [arg]
-  (doseq [child (reverse (file-seq (file file)))]
+  (doseq [child (reverse (file-seq (file arg)))]
     (delete child)))
 
 (defn make-directory

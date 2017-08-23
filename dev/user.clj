@@ -49,7 +49,7 @@
    :user "postgres"
    :password "postgres"})
 
-(def config {:movie/id "movie-server"
+(def config {:movie/instance-id "movie-server"
              :movie/port port
              :movie/log-path "/tmp"
              :movie/secret-key "secret"
@@ -134,7 +134,7 @@
 (def storage #(:movie-storage system))
 
 (comment
-  (client/get-movies (client))
+  (client/get-movies (client) {:page 1})
 
   (storage/unwatched! (storage) "1" "mike")
 

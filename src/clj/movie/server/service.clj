@@ -24,8 +24,8 @@
                                                                 :port port})))))
 
 (defn- stop-service
-  [{:keys [id port server conn-manager] :as service}]
-  (log/info (str "Stopping " id " on port " port "..."))
+  [{:keys [instance-id port server conn-manager] :as service}]
+  (log/info (str "Stopping " instance-id " on port " port "..."))
   (conn/close-all! conn-manager)
   (.close server)
   (dissoc service :server))

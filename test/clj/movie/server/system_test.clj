@@ -14,7 +14,7 @@
 
 (def port 9001)
 (def content-type "application/json")
-(def config {:movie/id "movie-server"
+(def config {:movie/instance-id "movie-server"
              :movie/port port
              :movie/log-path "/tmp"
              :movie/user-manager-type :atomic
@@ -60,15 +60,15 @@
 (deftest things
   (with-system (system/system config)
     (let [client (client)]
-      (unpack-response (client/get-movies client)
-        (is (= status 200))
+      (unpack-response (client/get-movies client {})
+        (is (= status 200) (util/pretty response))
         (is (= [] body)))
 
       (unpack-response (client/add-movie! client fantasia)
         (is (= status 200))
         (is (= fantasia (dissoc body :id)))
         (let [movie-with-id body]
-          (unpack-response (client/get-movies client)
+          (unpack-response (client/get-movies client {})
             (is (= status 200))
             (is (= [movie-with-id] body))))))
   )

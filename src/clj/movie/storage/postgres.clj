@@ -101,7 +101,7 @@
     (wrap-sql-errors
      (let [movie-count (total-count db)
            rows (jdbc/query db [(str select-movies " " order-by-title)])]
-       (movies-response movie-count rows))))
+       (log/spy (movies-response movie-count rows)))))
 
   (get-page [this page-number]
     (if (< page-number 1)
@@ -109,7 +109,7 @@
       (wrap-sql-errors
        (let [movie-count (total-count db)
              page-count (page-count movie-count)
-             query (log/spy (str select-movies " " order-by-title " " (page-clause page-size page-number)))
+             query (str select-movies " " order-by-title " " (page-clause page-size page-number))
              rows (jdbc/query db [query])]
          (assoc (movies-response movie-count rows) :page-count page-count)))))
 

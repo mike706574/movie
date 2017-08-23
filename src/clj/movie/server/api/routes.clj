@@ -17,10 +17,13 @@
             [compojure.route :as route]
             [taoensso.timbre :as log]))
 
+(def parse-int #(Integer/parseInt %))
+
 (defn status-code
   [status]
-  (if (= status :ok)
-    200
+  (case status
+    :ok 200
+    :invalid-args 400
     500))
 
 (defn search-moviedb
@@ -63,12 +66,13 @@
   (handle-exceptions request
     (or (unsupported-media-type request)
         (let [{:strs [letter page]} (:query-params request)
-              response (cond
-                         (and letter page) (storage/get-page-by-letter movie-storage letter page)
-                         letter (storage/get-movies-by-letter movie-storage letter)
-                         page (storage/get-page movie-storage page)
-                         :else (storage/get-movies movie-storage))]
-          (body-response 200 request response)))))
+              response (log/spy (cond
+                                  (and letter page)
+                                  (storage/get-page-by-letter movie-storage letter (parse-int page))
+                                  letter (storage/get-movies-by-letter movie-storage letter)
+                                  page (storage/get-page movie-storage (parse-int page))
+                                  :else (do (println "HERE") (storage/get-movies movie-storage))))]
+          (body-response (status-code (:status response)) request response)))))
 
 (defn routes
   [{:keys [user-manager authenticator] :as deps}]
