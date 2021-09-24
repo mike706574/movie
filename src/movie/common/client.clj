@@ -1,7 +1,7 @@
 (ns movie.common.client
   (:require [aleph.http :as http]
-            [movie.backend.json :as json]
-            [movie.backend.util :as util]
+            [movie.common.json :as json]
+            [movie.common.util :as util]
             [taoensso.timbre :as log]))
 
 (defn- get-request
@@ -29,6 +29,7 @@
   SystemClient
   (list-movies [this]
     (get-request {:url (str url "/api/movies")}))
+
   (sync-movies! [this movies]
     (let [url (str url "/api/movies")]
       (post-request {:url url

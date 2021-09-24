@@ -1,6 +1,6 @@
-(ns movie.backend.json
+(ns movie.common.json
   (:require [jsonista.core :as json]
-            [movie.backend.util :as util]))
+            [movie.common.util :as util]))
 
 (def ^:private json-mapper
   (json/object-mapper

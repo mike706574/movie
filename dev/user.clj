@@ -5,11 +5,11 @@
             [environ.core :refer [env]]
             [movie.common.client :as client]
             [movie.common.storage :as storage]
+            [movie.common.tmdb :as tmdb]
             [movie.backend.db :as db]
             [movie.backend.repo :as repo]
             [movie.backend.system :as system]
             [movie.backend.config :as backend-config]
-            [movie.backend.tmdb :as tmdb]
             [movie.cli.config :as cli-config]
             [movie.cli.core :as core]
             [next.jdbc :as jdbc]
@@ -113,4 +113,5 @@
   (core/sync-movies! deps)
   (core/list-movies deps)
 
+  @(http/get "http://api.tmdb.org" {:throw-exceptions? false})
   )

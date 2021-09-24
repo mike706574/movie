@@ -2,7 +2,7 @@
   (:require [clojure.java.io :as io]
             [com.stuartsierra.component :as component]
             [movie.backend.repo :as repo]
-            [movie.backend.tmdb :as tmdb]
+            [movie.common.tmdb :as tmdb]
             [muuntaja.core :as m]
             [selmer.parser :as selmer]
             [reitit.ring :as ring]
@@ -32,11 +32,15 @@
                :responses  {200 {:body any?}}
                :handler (fn [req]
                           (resp/resource-response "public/index.html"))}}]
-   ["/" {:get {:parameters {}
-               :responses  {200 {:body any?}}
-               :handler (fn [req]
-                          (selmer/render-file "templates/movie.html")
-                          (resp/resource-response "public/index.html"))}}]
+
+   ["/movies/:uuid" {:get {:parameters {}
+                           :responses {200 {:body any?}}
+                           :handler (fn [{{{uuid :uuid} :path} :parameters}]
+                                      (let [movie (repo/get-movie db uuid)]
+                                        {:status 200
+                                         :headers {"Content-Type" "text/html"}
+                                         :body (selmer/render-file "templates/movie.html" movie)}))}}]
+
    ["/api/movies" {:get {:parameters {}
                          :responses {200 {:body any?}}
                          :handler (fn [_]
@@ -46,6 +50,7 @@
                           :handler (fn [{{movies :body} :parameters :as req}]
                                      (let [result (repo/sync-movies! db movies)]
                                        {:status 200 :body result}))}}]
+
    ["/tmdb/search" {:get {:parameters {:query {:title string?}}}
                     :responses {200 {:body any?}}
                     :handler (fn [{{{:keys [title]} :query} :parameters}]

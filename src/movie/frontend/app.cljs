@@ -245,6 +245,7 @@
        (for [{:keys [moviedb-id
                      imdb-id
                      title
+                     uuid
                      overview
                      backdrop-path
                      release-date] :as movie} movies]
@@ -260,7 +261,7 @@
              :alt title}]
            [:div.card-body
             [:h4.card-title
-             [:a {:href "#"} title]]]]])])))
+             [:a {:href (str "/movies/" uuid)} title]]]]])])))
 
 (defn bottom
   []

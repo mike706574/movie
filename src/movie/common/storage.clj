@@ -2,7 +2,7 @@
   (:refer-clojure :exclude [load])
   (:require [clojure.java.io :as io]
             [clojure.string :as str]
-            [movie.backend.json :as json]
+            [movie.common.json :as json]
             [taoensso.timbre :as log]))
 
 (def file clojure.java.io/file)
@@ -138,22 +138,8 @@
        (flatten)
        (into [])))
 
-(defn rand-uuid [] (.toString (java.util.UUID/randomUUID)))
-
-(defn populate-movie-metadata!
-  ([path]
-   (populate-movie-metadata! path (read-movies-dir path)))
-  ([path movies]
-   (map
-    (fn [movie]
-      (let [{:keys [uuid path]} movie]
-        (if uuid
-          movie
-          (let [new-uuid (rand-uuid)]
-            (log/info "Populating metadata" {:path path :uuid new-uuid})
-            (spit (metadata-path path) (json/write-value-as-string {:uuid new-uuid}))
-            (assoc movie :uuid new-uuid)))))
-    movies)))
+(defn write-metadata! [path metadata]
+  (spit (metadata-path path) (json/write-value-as-string metadata)))
 
 (defn mock-movie!
   [path movie]

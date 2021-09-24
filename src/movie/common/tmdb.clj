@@ -1,8 +1,8 @@
-(ns movie.backend.tmdb
+(ns movie.common.tmdb
   (:require [aleph.http :as http]
             [clojure.string :as str]
-            [movie.backend.json :as json]
-            [movie.backend.util :as util]
+            [movie.common.json :as json]
+            [movie.common.util :as util]
             [taoensso.timbre :as log]))
 
 (defn- retry-statuses
@@ -12,13 +12,12 @@
 
 (defn- get-request
   [{:keys [url query-params retry-options]}]
-  (println "QP" query-params)
   (let [{:keys [status body]} (util/with-retry
                                 (fn execute-request []
                                   @(http/get url
                                              {:query-params query-params
                                               :headers {"Content-Type" "application/json;charset=utf8"}
-                                              :throw-exceptions false}))
+                                              :throw-exceptions? false}))
                                 (retry-statuses #{429})
                                 (fn next-wait [wait] (+ wait 100))
                                 retry-options)]
@@ -55,5 +54,5 @@
                     :retry-options retry-options}))))
 
 (defn client
-  [{:keys [tmdb]}]
-  (map->ApiTmdbClient tmdb))
+  [config]
+  (map->ApiTmdbClient config))

@@ -1,4 +1,4 @@
-(ns movie.backend.util
+(ns movie.common.util
   (:require [clojure.string :as str]
             [taoensso.timbre :as log]))
 
@@ -13,10 +13,6 @@
        (list yes (conj no item))))
    (list (list) (list))
    coll))
-
-(defn mapback
-  [f coll]
-  (into (empty coll) (map f coll)))
 
 (defn fmap
   [f m]

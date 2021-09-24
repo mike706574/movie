@@ -1,7 +1,7 @@
 (ns movie.backend.repo
   (:require [clojure.set :as set]
             [clojure.string :as str]
-            [movie.backend.util :as util]
+            [movie.common.util :as util]
             [next.jdbc :as jdbc]
             [next.jdbc.sql :as sql]
             [taoensso.timbre :as log]))
