@@ -44,7 +44,6 @@
                    :post {:parameters {:body any?}
                           :responses {200 {:body any?}}
                           :handler (fn [{{movies :body} :parameters :as req}]
-                                     (println "HANDLER MOVIES" movies)
                                      (let [result (repo/sync-movies! db movies)]
                                        {:status 200 :body result}))}}]
    ["/tmdb/search" {:get {:parameters {:query {:title string?}}}

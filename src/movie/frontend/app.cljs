@@ -241,37 +241,26 @@
     (if (empty? movies)
       [:div.text-center.pt-5.pb-5
        [:h3 "No movies found."]]
-      [:div
-       [:div.row
-        (for [{:keys [moviedb-id
-                      imdb-id
-                      title
-                      overview
-                      backdrop-path
-                      release-date] :as movie} movies]
+      [:div.row.row-cols-1.row-cols-md-3.g-4
+       (for [{:keys [moviedb-id
+                     imdb-id
+                     title
+                     overview
+                     backdrop-path
+                     release-date] :as movie} movies]
+         [:div.col
           [:div.card {:key title
-                      :style {"width" "20rem"
-                              "margin" ".75rem"}}
+                      :style {"marginBottom" "1em"}}
            [:img.card-img-top
             {:src (if backdrop-path
                     (str "http://image.tmdb.org/t/p/w300" backdrop-path)
                     "http://via.placeholder.com/300x169")
              :style {"display" "block"
-                     "width" "20rem"
                      "height" "auth"}
              :alt title}]
-           [:div.card-block
-            [:h4.card-title title]
-            [:h6.card-subtitle.mb-2.text-muted release-date]
-            [:p.card-text overview]
-            [:a.card-link
-             {:href (str "https://www.themoviedb.org/movie/" moviedb-id)
-              :target "_blank"}
-             "themoviedb"]
-            [:a.card-link
-             {:href (str "http://www.imdb.com/title/" imdb-id)
-              :target "_blank"}
-             "IMDb"]]])]])))
+           [:div.card-body
+            [:h4.card-title
+             [:a {:href "#"} title]]]]])])))
 
 (defn bottom
   []

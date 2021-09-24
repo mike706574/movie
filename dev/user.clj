@@ -23,7 +23,7 @@
 (def port 7600)
 
 ;; backend
-(def backend-config (backend-config/config {:env "dev" :port port}))
+(def config (backend-config/config {:env "dev" :port port}))
 
 (defonce system nil)
 
@@ -57,10 +57,10 @@
   (stop)
   (go))
 
-(def db (db/new-db (:db backend-config)))
+(def db (db/new-db (:db config)))
 
 (def cli-config (cli-config/config {:env "dev"}))
-(def deps (cli-config/system cli-config))
+(def deps (cli-config/deps cli-config))
 
 (def tmdb (tmdb/client config))
 

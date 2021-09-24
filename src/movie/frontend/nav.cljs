@@ -19,8 +19,7 @@
      :style {"cursor" "pointer"
              "color" "#0275d8"}
      :on-click f}
-    [:span {:aria-hidden "true"} "«"]
-    [:span.sr-only "Previous"]]])
+    [:span {:aria-hidden "true"} "«"]]])
 
 (defn disabled-previous-link
   []
@@ -30,8 +29,7 @@
     {:aria-label "Previous"
      :style {"cursor" "pointer"
              "color" "#0275d8"}}
-    [:span {:aria-hidden "true"} "«"]
-    [:span.sr-only "Previous"]]])
+    [:span {:aria-hidden "true"} "«"]]])
 
 (defn next-link
   [f]
@@ -42,8 +40,7 @@
      :style {"cursor" "pointer"
              "color" "#0275d8"}
      :on-click f}
-    [:span {:aria-hidden "true"} "»"]
-    [:span.sr-only "Next"]]])
+    [:span {:aria-hidden "true"} "»"]]])
 
 (defn disabled-next-link
   []
@@ -53,8 +50,7 @@
     {:aria-label "Next"
      :style {"cursor" "pointer"
              "color" "#0275d8"}}
-    [:span {:aria-hidden "true"} "»"]
-    [:span.sr-only "Next"]]])
+    [:span {:aria-hidden "true"} "»"]]])
 
 (defn disabled-page-link
   [label]
