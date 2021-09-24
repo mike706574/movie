@@ -1,0 +1,17 @@
+;; shadow-cljs configuration
+{:source-paths
+ ["src"]
+
+ :dependencies
+ [[cljs-ajax "0.8.1"]
+  [com.taoensso/timbre "5.1.2"]
+  [day8.re-frame/http-fx "0.2.3"]
+  [re-frame "1.2.0"]
+  [reagent "1.1.0"]]
+
+ :builds
+ {:frontend
+  {:target :browser
+   :modules {:main {:init-fn movie.frontend.app/init}}
+   :output-dir "resources/public/js"
+   }}}
