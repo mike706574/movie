@@ -1,5 +1,6 @@
 (ns user
   (:require [aleph.http :as http]
+            [clojure.set :as set]
             [clojure.tools.namespace.repl :as repl]
             [com.stuartsierra.component :as component]
             [environ.core :refer [env]]
@@ -58,11 +59,10 @@
   (go))
 
 (def db (db/new-db (:db config)))
+(def tmdb (tmdb/client (:tmdb config)))
 
 (def cli-config (cli-config/config {:env "dev"}))
 (def deps (cli-config/deps cli-config))
-
-(def tmdb (tmdb/client config))
 
 (def client (client/client cli-config))
 
@@ -77,10 +77,20 @@
 (def new-test-movie
   {:title "Mulan" :video-files ["Mulan.mp4"] :letter "M"})
 
+(defn sim []
+  (do
+    (storage/mock-dir! test-dir test-movies)
+    (db/reset db)
+    (core/sync-movies! deps)))
+
 (comment
 
   ;; tmdb
   (tmdb/get-config tmdb)
+  (-> (tmdb/get-movie tmdb 10020) :body keys set)
+  (-> (tmdb/search-movies tmdb "Beauty and the Beast") :body first)
+
+  (tmdb/get-movie tmdb 10020)
 
   ;; db
   (db/rollback db)
@@ -112,6 +122,4 @@
   ;; core
   (core/sync-movies! deps)
   (core/list-movies deps)
-
-  @(http/get "http://api.tmdb.org" {:throw-exceptions? false})
   )

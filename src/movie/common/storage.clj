@@ -2,8 +2,7 @@
   (:refer-clojure :exclude [load])
   (:require [clojure.java.io :as io]
             [clojure.string :as str]
-            [movie.common.json :as json]
-            [taoensso.timbre :as log]))
+            [movie.common.json :as json]))
 
 (def file clojure.java.io/file)
 
@@ -121,11 +120,6 @@
            (map #(hash-map :letter letter :path %)))
       [])))
 
-(defn movie-dirs [path]
-  (->> alphabet
-       (map letter-movie-dirs)
-       (flatten)))
-
 (defn read-letter-dir
   [path letter]
   (->> (letter-movie-dirs path letter)
@@ -162,5 +156,4 @@
       (let [letter-path (letter-path path letter)]
         (make-directory! letter-path)
         (doseq [movie movies]
-          (println "MOVIE" movie)
           (mock-movie! path (assoc movie :letter letter)))))))

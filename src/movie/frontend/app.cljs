@@ -1,7 +1,6 @@
 (ns movie.frontend.app
   (:require [ajax.core :as ajax]
             [clojure.string :as str]
-            [cljs.pprint :refer [pprint]]
             [day8.re-frame.http-fx]
             [movie.frontend.alphabet :as alphabet]
             [movie.frontend.nav :as nav]
@@ -14,7 +13,6 @@
 (defn includes-ignore-case?
   [string sub]
   (not (nil? (.match string (re-pattern (str "(?i)" sub))))))
-
 
 ;; -- Event Dispatch -----------------------------------------------------------
 
@@ -104,7 +102,7 @@
 
 (rf/reg-event-db
  :toggle-movie-letter-input-type
- (fn [db [_ text]]
+ (fn [db _]
    (update db :movie-letter-input-type
            #(case %
               :full :skinny
@@ -131,7 +129,7 @@
 
 (rf/reg-sub
   :movie-count
-  (fn [{:keys [page-number movies] :as db} _]
+  (fn [{:keys [movies]} _]
     (when movies
       (count movies))))
 
@@ -181,7 +179,7 @@
     :on-click  on-click}])
 
 (defn movie-item
-  [{:keys [status movie-path letter category] :as movie}]
+  [{:keys [movie-path]}]
   [:li {:key movie-path} movie-path])
 
 (defn movie-filter-input
@@ -196,15 +194,8 @@
 
 (defn movie-letter-input
   []
-  (let [{:keys [movie-letter
-                movie-letter-input-type]} @(rf/subscribe [:movie-letter-state])]
+  (let [{:keys [movie-letter]} @(rf/subscribe [:movie-letter-state])]
     [:div
-;;     [button "Toggle Input Type" #(rf/dispatch [:toggle-movie-letter-input-type])]
-     (comment [:ul.pagination
-               (for [item alphabet/alphabet-vector]
-                 (if (= item movie-letter)
-                   (nav/active-page-link item)
-                   (nav/page-link item #(rf/dispatch [:to-letter item]))))])
      (let [defaulted-movie-letter (or movie-letter "A")
            [before-previous previous] (alphabet/take-before 2 defaulted-movie-letter)
            [next after-next] (alphabet/take-after 2 defaulted-movie-letter)]
@@ -221,7 +212,7 @@
 
 (defn movie-pagination
   []
-  (let [{:keys [page-number page-count filtered-movie-count] :as response} @(rf/subscribe [:page])]
+  (let [{:keys [page-number page-count filtered-movie-count]} @(rf/subscribe [:page])]
     (when-not (zero? filtered-movie-count)
       [:ul.pagination
        (if (= 1 page-number)
@@ -235,6 +226,12 @@
          (nav/disabled-next-link)
          (nav/next-link #(rf/dispatch [:next-page])))])))
 
+(defn ellipsis
+  [length string]
+  (if (> (count string) length)
+    (str (str/trim (str/join (take length string))) "...")
+    string))
+
 (defn movies
   []
   (let [movies (:page-movies @(rf/subscribe [:page]))]
@@ -242,26 +239,28 @@
       [:div.text-center.pt-5.pb-5
        [:h3 "No movies found."]]
       [:div.row.row-cols-1.row-cols-md-3.g-4
-       (for [{:keys [moviedb-id
-                     imdb-id
-                     title
+       (for [{:keys [title
                      uuid
                      overview
-                     backdrop-path
-                     release-date] :as movie} movies]
-         [:div.col
-          [:div.card {:key title
-                      :style {"marginBottom" "1em"}}
+                     tmdb-backdrop-path
+                     release-date]} movies]
+         [:div.col {:key uuid}
+          [:div.card {:style {"marginBottom" "1em"}}
            [:img.card-img-top
-            {:src (if backdrop-path
-                    (str "http://image.tmdb.org/t/p/w300" backdrop-path)
+            {:src (if tmdb-backdrop-path
+                    (str "http://image.tmdb.org/t/p/w300" tmdb-backdrop-path)
                     "http://via.placeholder.com/300x169")
              :style {"display" "block"
                      "height" "auth"}
              :alt title}]
            [:div.card-body
-            [:h4.card-title
-             [:a {:href (str "/movies/" uuid)} title]]]]])])))
+            [:h5.card-title
+             {:style {"display" "inline"}}
+             [:a {:href (str "/movies/" uuid)} title]]
+            [:h6.card-subtitle.text-muted
+             {:style {"display" "inline" "marginLeft" "0.25em"}}
+             release-date]
+            [:p.card-text (ellipsis 150 overview)]]]])])))
 
 (defn bottom
   []

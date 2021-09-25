@@ -1,16 +1,15 @@
 (ns movie.backend.handler
-  (:require [clojure.java.io :as io]
-            [com.stuartsierra.component :as component]
+  (:require [com.stuartsierra.component :as component]
             [movie.backend.repo :as repo]
             [movie.common.tmdb :as tmdb]
             [muuntaja.core :as m]
-            [selmer.parser :as selmer]
             [reitit.ring :as ring]
             [reitit.coercion.spec]
             [reitit.ring.coercion :as rrc]
             [reitit.ring.middleware.muuntaja :as muuntaja]
             [reitit.ring.middleware.parameters :as parameters]
             [ring.util.response :as resp]
+            [selmer.parser :as selmer]
             [taoensso.timbre :as log]))
 
 (defn wrap-logging
@@ -30,7 +29,7 @@
   [{:keys [db tmdb]}]
   [["/" {:get {:parameters {}
                :responses  {200 {:body any?}}
-               :handler (fn [req]
+               :handler (fn [_]
                           (resp/resource-response "public/index.html"))}}]
 
    ["/movies/:uuid" {:get {:parameters {}
@@ -47,7 +46,7 @@
                                     {:status 200 :body (repo/list-movies db)})}
                    :post {:parameters {:body any?}
                           :responses {200 {:body any?}}
-                          :handler (fn [{{movies :body} :parameters :as req}]
+                          :handler (fn [{{movies :body} :parameters}]
                                      (let [result (repo/sync-movies! db movies)]
                                        {:status 200 :body result}))}}]
 

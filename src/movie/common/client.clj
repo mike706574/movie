@@ -1,8 +1,6 @@
 (ns movie.common.client
   (:require [aleph.http :as http]
-            [movie.common.json :as json]
-            [movie.common.util :as util]
-            [taoensso.timbre :as log]))
+            [movie.common.json :as json]))
 
 (defn- get-request
   [{:keys [url query-params]}]
@@ -27,10 +25,10 @@
 
 (defrecord ApiSystemClient [url]
   SystemClient
-  (list-movies [this]
+  (list-movies [_]
     (get-request {:url (str url "/api/movies")}))
 
-  (sync-movies! [this movies]
+  (sync-movies! [_ movies]
     (let [url (str url "/api/movies")]
       (post-request {:url url
                      :body movies}))))

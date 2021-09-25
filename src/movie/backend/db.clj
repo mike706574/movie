@@ -1,7 +1,5 @@
 (ns movie.backend.db
-  "Functions for inspecting the schema of databases."
-  (:require [clojure.set :as set]
-            [migratus.core :as migratus]
+  (:require [migratus.core :as migratus]
             [next.jdbc :as jdbc]
             [next.jdbc.result-set :as rs]))
 
@@ -40,14 +38,6 @@
                   :user "postgres"
                   :password "postgres"}
                  spec)))
-
-(defn- get-connectable [db]
-  (loop [x db]
-    (if (map? x)
-      (if-let [c (:connectable x)]
-        c
-        (throw (ex-info "map with no connectable" {:x x})))
-      x)))
 
 (defn- new-migratus-config [db]
   {:store :database

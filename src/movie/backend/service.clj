@@ -21,7 +21,7 @@
             server (aleph/start-server handler {:port port})]
         (log/info "Finished starting service." info)
         (assoc service :server server))
-      (catch java.net.BindException e
+      (catch java.net.BindException _
         (throw (ex-info "Service port already in use." info))))))
 
 (defn- stop-service

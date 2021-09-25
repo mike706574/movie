@@ -1,6 +1,5 @@
 (ns movie.cli.config
-  (:require [environ.core :as environ]
-            [movie.common.client :as client]
+  (:require [movie.common.client :as client]
             [movie.common.config :as config]
             [movie.common.tmdb :as tmdb]))
 

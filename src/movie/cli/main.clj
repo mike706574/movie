@@ -5,5 +5,5 @@
 (defn -main [[cmd]]
   (let [config (config/config)]
     (case cmd
-      "sync" (core/sync config)
+      "sync-movies" (core/sync-movies! config)
       (throw (ex-info "Invalid command" {:cmd cmd})))))

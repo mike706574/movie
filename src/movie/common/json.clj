@@ -1,10 +1,12 @@
 (ns movie.common.json
-  (:require [jsonista.core :as json]
-            [movie.common.util :as util]))
+  (:require [clojure.string :as str]
+            [jsonista.core :as json]))
+
+(defn- dashed [x] (keyword (str/replace (name x) #"_" "-")))
 
 (def ^:private json-mapper
   (json/object-mapper
-   {:decode-key-fn util/dashed-keyword}))
+   {:decode-key-fn dashed}))
 
 (defn read-value [val]
   (json/read-value val json-mapper))
