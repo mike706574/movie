@@ -9,7 +9,6 @@
             [reitit.ring.middleware.muuntaja :as muuntaja]
             [reitit.ring.middleware.parameters :as parameters]
             [ring.util.response :as resp]
-            [selmer.parser :as selmer]
             [taoensso.timbre :as log]))
 
 (defn wrap-logging
@@ -32,14 +31,6 @@
                :handler (fn [_]
                           (resp/resource-response "public/index.html"))}}]
 
-   ["/movies/:uuid" {:get {:parameters {}
-                           :responses {200 {:body any?}}
-                           :handler (fn [{{{uuid :uuid} :path} :parameters}]
-                                      (let [movie (repo/get-movie db uuid)]
-                                        {:status 200
-                                         :headers {"Content-Type" "text/html"}
-                                         :body (selmer/render-file "templates/movie.html" movie)}))}}]
-
    ["/api/movies" {:get {:parameters {}
                          :responses {200 {:body any?}}
                          :handler (fn [_]
@@ -50,10 +41,22 @@
                                      (let [result (repo/sync-movies! db movies)]
                                        {:status 200 :body result}))}}]
 
+   ["/api/movies/:uuid" {:get {:parameters {:path {:uuid string?}}
+                               :responses {200 {:body any?}}
+                               :handler (fn [{{{uuid :uuid} :path} :parameters}]
+                                          {:status 200
+                                           :body (repo/get-movie db uuid)})}
+                         :post {:parameters {:body any?
+                                             :path {:uuid string?}}
+                                :responses {200 {:body any?}}
+                                :handler (fn [{{model :body {uuid :uuid} :path :as params} :parameters}]
+                                           (let [{rating :rating} model]
+                                             (repo/rate-movie! db uuid rating)
+                                             {:status 200 :body {:rating rating}}))}}]
+
    ["/tmdb/search" {:get {:parameters {:query {:title string?}}}
                     :responses {200 {:body any?}}
                     :handler (fn [{{{:keys [title]} :query} :parameters}]
-                               (log/info "TMDB search" {:title title})
                                (let [results (tmdb/search-movies tmdb title)]
                                  {:status 200 :body results}))}]
 

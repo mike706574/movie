@@ -38,11 +38,15 @@ FOR EACH ROW EXECUTE PROCEDURE update_modified();
 CREATE TABLE movie_rating (
   movie_rating_id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   movie_id INT REFERENCES movie (movie_id),
-  rating DECIMAL NOT NULL,
+  rating DECIMAL,
   active BOOLEAN DEFAULT TRUE,
   created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   modified TIMESTAMPTZ
 );
+--;;
+CREATE UNIQUE INDEX movie_rating_uniqueness
+ON movie_rating (movie_id)
+WHERE (active);
 --;;
 CREATE TRIGGER movie_rating_modified
 BEFORE UPDATE ON movie_rating

@@ -19,7 +19,8 @@
                  :port 7601
                  :dbname "postgres"
                  :user "postgres"
-                 :password "postgres"}
+                 :password "postgres"
+                 :log? true}
           "prod" {:url (or (environ/env "DATABASE_URL")
                            (throw (ex-info "DATABASE_URL not set" {})))}
           (throw (ex-info "Invalid env" {:env env})))

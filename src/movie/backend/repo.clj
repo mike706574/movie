@@ -9,6 +9,12 @@
 
 (defn- get-id-column [table] (keyword (str (name (underscored table)) "_id")))
 
+(defn- adjust-key [table key]
+  (let [id-column (get-id-column table)]
+    (if (= key id-column)
+      id-column
+      (underscored key))))
+
 (defn- adjust-keys [table keys]
   (-> keys
       (set/rename-keys {:id (get-id-column table)})
@@ -41,17 +47,19 @@
 (defn insert-item! [db table item]
   (sql/insert! db (underscored table) (update-keys item underscored)))
 
-(defn update-items! [db table k cols items]
-  (let [sets (->> cols
+(defn update-items! [db table primary-key keys items]
+  (let [sets (->> keys
+                  (map (partial adjust-key table))
                   (map name)
                   (map #(str % " = ?"))
                   (str/join ", "))
-        sql (str "UPDATE " (name (underscored table)) " SET " sets " WHERE " (name k) " = ?")
+        primary-key-col (name (adjust-key table primary-key))
+        sql (str "UPDATE " (name (underscored table)) " SET " sets " WHERE " primary-key-col " = ?")
         bindings (mapv
                   (fn [item]
                     (conj
-                     (mapv #(get item %) cols)
-                     (get item k)))
+                     (mapv #(get item %) keys)
+                     (get item primary-key)))
                   items)]
     (jdbc/execute-batch! db sql bindings {})))
 
@@ -80,8 +88,8 @@
 
 (defn rate-movie! [db uuid rating]
   (let [id (get-movie-id db uuid)]
-    (deactivate-item! db :movie_rating {:id id})
-    (sql/insert! db :movie-rating {:movie_id id :rating rating})))
+    (deactivate-item! db :movie-rating {:movie-id id})
+    (insert-item! db :movie-rating {:movie-id id :rating rating})))
 
 (defn sync-movies! [db movies]
   (let [stored-movies (list-movies db)

@@ -77,11 +77,14 @@
 (def new-test-movie
   {:title "Mulan" :video-files ["Mulan.mp4"] :letter "M"})
 
-(defn sim []
-  (do
-    (storage/mock-dir! test-dir test-movies)
-    (db/reset db)
-    (core/sync-movies! deps)))
+(defn sim-1 []
+  (storage/mock-dir! test-dir test-movies)
+  (db/reset db)
+  (core/sync-movies! deps))
+
+(defn sim-2 []
+  (storage/mock-movie! test-dir new-test-movie)
+  (core/sync-movies! deps))
 
 (comment
 

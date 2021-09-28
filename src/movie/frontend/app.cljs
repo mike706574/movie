@@ -1,81 +1,150 @@
 (ns movie.frontend.app
   (:require [ajax.core :as ajax]
             [clojure.string :as str]
+            [clojure.pprint :refer [pprint]]
             [day8.re-frame.http-fx]
             [movie.frontend.alphabet :as alphabet]
             [movie.frontend.nav :as nav]
+            [reitit.coercion.spec :as rss]
+            [reitit.frontend :as rfe]
+            [reitit.frontend.easy :as rfez]
+            [reitit.frontend.controllers :as rfc]
+            [reagent.core :as r]
             [reagent.dom :as rd]
             [re-frame.core :as rf]))
 
-;; -- Development --------------------------------------------------------------
+;; -- Development
 (enable-console-print!)
 
+;; -- Utilities --
 (defn includes-ignore-case?
   [string sub]
   (not (nil? (.match string (re-pattern (str "(?i)" sub))))))
 
-;; -- Event Dispatch -----------------------------------------------------------
+(defn classes [entries]
+  (->> entries
+       (filter (fn [entry]
+                 (or (string? entry)
+                     (= (count entry) 1)
+                     (second entry))))
+       (map (fn [entry]
+              (if (string? entry)
+                entry
+                (first entry))))))
 
+(defn href
+  ([k]
+   (href k nil nil))
+  ([k params]
+   (href k params nil))
+  ([k params query]
+   (rfez/href k params query)))
 
-;; -- Event Handlers -----------------------------------------------------------
+;; -- Event Handlers --
 
-(def page-size 12)
+(rf/reg-event-db
+ :initialize
+ (fn [db _]
+   (merge db
+          {:current-route nil
+           :status :loading
+           :page-number nil
+           :movie-letter nil
+           :movie-letter-input-type :full
+           :movies nil
+           :movie nil})))
 
+(rf/reg-event-fx
+ :push-state
+  (fn [_ [_ & route]]
+    {:push-state route}))
+
+(rf/reg-event-db
+ :navigated
+  (fn [db [_ new-match]]
+    (let [old-match (:current-route db)
+          controllers (rfc/apply-controllers (:controllers old-match) new-match)]
+      (assoc db :current-route (assoc new-match :controllers controllers)))))
+
+;; Fetching movies
 (defn movies-request []
-  {:method          :get
-   :uri             "/api/movies"
+  {:method :get
+   :uri "/api/movies"
    :response-format (ajax/json-response-format {:keywords? true})
-   :on-success      [:process-movies]
-   :on-failure      [:handle-movies-failure]})
+   :on-success [:process-movies]
+   :on-failure [:handle-failure]})
 
-(defn initialize [_ _]
-  (println "Initializing.")
-  {:http-xhrio (movies-request)
-   :db {:movie-status :loading
-        :page-number nil
-        :movie-letter nil
-        :movie-letter-input-type :full
-        :movies nil}})
-
-(rf/reg-event-fx :initialize initialize)
-
-(defn fetch-movies
-  [{db :db} _]
-  {:http-xhrio (movies-request)
-   :db (assoc db
-              :movies nil
-              :movie-status :loading)})
-
-(rf/reg-event-fx :fetch-movies fetch-movies)
+(rf/reg-event-fx
+ :fetch-movies
+ (fn [{db :db} _]
+   {:http-xhrio (movies-request)
+    :db (assoc db :status :loading)}))
 
 (rf/reg-event-db
  :process-movies
  (fn [db [_ response]]
-   (let [movies (js->clj response)
-         new-db (-> db
-                    (merge {:movie-status :loaded
-                            :page-number 1
-                            :movie-letter nil
-                            :movies movies}))]
-     new-db)))
+   (-> db
+       (merge {:status :loaded
+               :page-number 1
+               :movie-letter nil
+               :movies (js->clj response)}))))
 
-;; paging
-(defn previous-page
-  [db _]
-  (update db :page-number dec))
+;; Fetching a movie
+(defn movie-request [uuid]
+  {:method :get
+   :uri (str "/api/movies/" uuid)
+   :response-format (ajax/json-response-format {:keywords? true})
+   :on-success [:process-movie]
+   :on-failure [:handle-failure]})
 
-(defn next-page
-  [db _]
-  (update db :page-number inc))
+(rf/reg-event-fx
+ :fetch-movie
+ (fn [{db :db} [_ uuid]]
+   {:http-xhrio (movie-request uuid)
+    :db (assoc db :status :loading)}))
 
-(def to-page
+(rf/reg-event-fx
+ :refresh-movie
+ (fn [{db :db} [_ uuid]]
+   {:http-xhrio (movie-request uuid)}))
+
+(rf/reg-event-db
+ :process-movie
+ (fn [db [_ response]]
+   (assoc db :status :loaded :movie (js->clj response))))
+
+;; Rating a movie
+(defn rate-movie-request [uuid rating]
+  {:method :post
+   :params {:rating rating}
+   :uri (str "/api/movies/" uuid)
+   :format (ajax/json-request-format {:keywords? true})
+   :response-format (ajax/json-response-format {:keywords? true})
+   :on-success [:refresh-movie uuid]
+   :on-failure [:handle-failure]})
+
+(rf/reg-event-fx
+ :rate-movie
+ (fn [{db :db} [_ uuid rating]]
+   {:http-xhrio (rate-movie-request uuid rating)}))
+
+;; Movie pagination
+(rf/reg-event-db
+ :next-page
+ (fn [db _]
+  (update db :page-number inc)))
+
+(rf/reg-event-db
+ :previous-page
+ (fn [db _]
+   (update db :page-number dec)))
+
+(rf/reg-event-db
+ :to-page
  (fn [db [_ page-number]]
    (assoc db :page-number page-number)))
 
-(rf/reg-event-db :next-page next-page)
-(rf/reg-event-db :previous-page previous-page)
-(rf/reg-event-db :to-page to-page)
-
+;; Movie letters
 (rf/reg-event-db
  :previous-letter
  (fn [db _]
@@ -95,6 +164,7 @@
  (fn [db [_ new-letter]]
    (assoc db :movie-letter new-letter :page-number 1)))
 
+;; Movie filter
 (rf/reg-event-db
  :movie-filter-change
  (fn [db [_ text]]
@@ -109,13 +179,28 @@
               :skinny :full))))
 
 (rf/reg-event-db
- :handle-movies-failure
+ :handle-failure
  (fn [db [_ response]]
-   (merge db {:movie-status :error
+   (pprint response)
+   (merge db {:status :error
               :error-message (:status-text response)})))
 
+(rf/reg-event-fx
+  :navigate
+  (fn [_ [_ & route]]
+    {:navigate! route}))
 
-;; -- Query  -------------------------------------------------------------------
+;; -- Effects --
+(rf/reg-fx :push-state
+  (fn [route]
+    (apply rfez/push-state route)))
+
+;; -- Subscriptions --
+
+(rf/reg-sub
+  :current-route
+  (fn [db]
+    (:current-route db)))
 
 (rf/reg-sub
   :movies
@@ -123,15 +208,22 @@
     (:movies db)))
 
 (rf/reg-sub
-  :movie-state
+  :movie
   (fn [db _]
-    (select-keys db [:movie-status :error-message])))
+    (:movie db)))
+
+(rf/reg-sub
+  :state
+  (fn [db _]
+    (select-keys db [:status :error-message])))
 
 (rf/reg-sub
   :movie-count
   (fn [{:keys [movies]} _]
     (when movies
       (count movies))))
+
+(def page-size 12)
 
 (defn filter-movies
   [{:keys [movie-letter movie-filter-text movies page-number]}]
@@ -169,14 +261,7 @@
     (select-keys db [:movie-letter
                      :movie-letter-input-type])))
 
-;; -- View Functions -----------------------------------------------------------
-
-(defn button
-  [label on-click]
-  [:input.btn.btn-default
-   {:type "button"
-    :value label
-    :on-click  on-click}])
+;; -- Views --
 
 (defn movie-item
   [{:keys [movie-path]}]
@@ -245,7 +330,7 @@
                      tmdb-backdrop-path
                      release-date]} movies]
          [:div.col {:key uuid}
-          [:div.card {:style {"marginBottom" "1em"}}
+          [:div.card.mb-3
            [:img.card-img-top
             {:src (if tmdb-backdrop-path
                     (str "http://image.tmdb.org/t/p/w300" tmdb-backdrop-path)
@@ -256,7 +341,7 @@
            [:div.card-body
             [:h5.card-title
              {:style {"display" "inline"}}
-             [:a {:href (str "/movies/" uuid)} title]]
+             [:a {:href (href :movie {:uuid uuid})} title]]
             [:h6.card-subtitle.text-muted
              {:style {"display" "inline" "marginLeft" "0.25em"}}
              release-date]
@@ -273,21 +358,127 @@
    [:nav
     [movie-pagination]]])
 
-(defn ui
+(defn rating-text [rating] (if rating (str rating) ""))
+
+(defn rating-form [{:keys [uuid rating]}]
+  (let [rating-atom (r/atom (rating-text rating))]
+    (fn []
+      (let [new-rating @rating-atom
+            changed? (= (rating-text rating) new-rating)
+            disabled? (and (not= new-rating "") (js/Number.isNaN (js/parseFloat new-rating)))]
+        [:form.mb-3.w-25
+         [:div.input-group
+          [:input.form-control {:type "number"
+                                :value new-rating
+                                :on-change #(reset! rating-atom (-> % .-target .-value))}]
+          [:button.btn.btn-primary {:disabled disabled?
+                                    :on-click #(rf/dispatch [:rate-movie uuid (js/parseFloat new-rating)])}
+           "Rate"]]]))))
+
+(defn movie-page
   []
-  (let [{:keys [movie-status error-message]} @(rf/subscribe [:movie-state])]
+  (let [{:keys [title overview tmdb-poster-path tmdb-id imdb-id release-date runtime rating uuid id] :as movie} @(rf/subscribe [:movie])]
+    [:<>
+     [:p "This is a movie."]
+     [:h2 title]
+     [:div.row
+      [:div.col-md-4
+       [:img.img-fluid.mb-3
+        {:src (str "http://image.tmdb.org/t/p/w780" tmdb-poster-path)}]]
+      [:div.col-md-8
+       [:h6 "Overview"]
+       [:blockquote.blockquote overview]
+       [:h6 "Rating"]
+       [rating-form movie]
+       [:h6 "Info"]
+       [:table.table.table-bordered
+        [:tbody
+         [:tr
+          [:th {:scope "row"} "Released"]
+          [:td release-date]]
+         [:tr
+          [:th {:scope "row"} "Runtime"]
+          [:td runtime]]
+         [:tr
+          [:th {:scope "row"} "UUID"]
+          [:td uuid]]
+         [:tr
+          [:th {:scope "row"} "ID"]
+          [:td id]]
+         [:tr
+          [:th {:scope "row"} "Links"]
+          [:td
+           [:a {:href (str "https://www.themoviedb.org/movie/" tmdb-id)
+                :style {"marginRight" "0.5em"}}
+            "TMDB"]
+           [:a {:href (str "https://www.imdb.org/title/" imdb-id)}
+            "IMDB"]]]]]]]]))
+
+(defn home-page []
+  [:<>
+   [:p "These are my movies."]
+   [bottom]])
+
+(defn app []
+  (let [{:keys [status error-message]} @(rf/subscribe [:state])
+        current-route @(rf/subscribe [:current-route])]
     [:div.container
      {:style {"marginTop" "1em"}}
      [:h1 "Movies"]
-     (case movie-status
-       :loading [:p "Loading movies..."]
+     (case status
+       :loading [:p "Loading..."]
        :error [:p (str "Error: " error-message)]
-       [:<>
-        [:p "These are my movies."]
-        [bottom]])]))
+       (when current-route
+         [(-> current-route :data :view)]))]))
 
-;; -- Entry Point -------------------------------------------------------------
+;; -- Routes --
+
+(def routes
+  ["/"
+   [""
+    {:name :home
+     :view home-page
+     :link-text "Home"
+     :controllers
+     [{:start (fn []
+                (println "Entering home page")
+                (rf/dispatch [:fetch-movies]))
+       :stop (fn []
+               (println "Leaving home page"))}]}]
+
+   ["movies/:uuid"
+    {:name :movie
+     :view movie-page
+     :link-text "Movie"
+     :params {:path [:map [:uuid string?]]}
+     :controllers
+     [{:parameters {:path [:uuid]}
+       :start (fn [{{:uuid uuid} :path}]
+                (println "Entering movie page for uuid" uuid)
+                (rf/dispatch [:fetch-movie uuid]))
+       :stop (fn []
+               (println "Leaving movie page"))}]}]])
+
+
+(defn on-navigate [new-match]
+  (when new-match
+    (rf/dispatch [:navigated new-match])))
+
+(def router
+  (rfe/router
+    routes
+    {:data {:coercion rss/coercion}}))
+
+(defn init-routes! []
+  (rfez/start!
+    router
+    on-navigate
+    {:use-fragment true}))
+
+;; -- Entry Point--
 
 (defn init []
+  (println "Initializing")
   (rf/dispatch-sync [:initialize])
-  (rd/render [ui] (js/document.getElementById "app")))
+  (init-routes!)
+  (rd/render [app] (js/document.getElementById "app")))

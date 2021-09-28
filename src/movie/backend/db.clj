@@ -22,7 +22,10 @@
         (fn [sym state result]
           (prn sym
                (- (System/currentTimeMillis) state)
-               (if (map? result) result (count result)))))
+               (cond
+                 (map? result) result
+                 (sequential? result) (count result)
+                 :else result))))
       db)))
 
 (defn new-pg-db

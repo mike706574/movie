@@ -5,6 +5,7 @@
  :dependencies
  [[cljs-ajax "0.8.1"]
   [com.taoensso/timbre "5.1.2"]
+  [metosin/reitit "0.5.15"]
   [day8.re-frame/http-fx "0.2.3"]
   [re-frame "1.2.0"]
   [reagent "1.1.0"]]

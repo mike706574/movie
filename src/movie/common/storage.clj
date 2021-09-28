@@ -100,15 +100,16 @@
   (let [{:keys [path letter]} dir
         {:keys [video subtitle other]} (group-by classify-file (list-files path))
         metadata-path (metadata-path path)
-        {:keys [uuid]} (when (file-exists? metadata-path)
-                         (json/read-value (slurp metadata-path)))]
-    {:uuid uuid
-     :letter letter
-     :path (file-absolute-path path)
-     :title (file-base path)
-     :video-files (mapv file-name video)
-     :subtitle-files (mapv file-name subtitle)
-     :other-files (mapv file-name other)}))
+        metadata (when (file-exists? metadata-path)
+                   (json/read-value (slurp metadata-path)))]
+    (merge
+     {:letter letter
+      :path (file-absolute-path path)
+      :title (file-base path)
+      :video-files (mapv file-name video)
+      :subtitle-files (mapv file-name subtitle)
+      :other-files (mapv file-name other)}
+     metadata)))
 
 (defn letter-path [path letter] (str path sep (str/lower-case letter)))
 
