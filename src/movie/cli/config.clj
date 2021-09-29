@@ -16,7 +16,7 @@
     (case env
       "dev" {:client {:url "http://localhost:7600"}
              :path "movies"}
-      "prod" {:client {:url "TODO"}
+      "prod" {:client {:url "https://movie-mike.herokuapp.com"}
               :path "TODO"}))))
 
 (defn deps
