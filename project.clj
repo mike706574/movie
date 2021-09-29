@@ -21,7 +21,7 @@
   :uberjar-name "movie.jar"
   :profiles {:uberjar {:env {:production true}
                        :aot :all}
-             :app {:main movie.backend.main
+             :web {:main movie.backend.main
                    :prep-tasks ["frontend"]}
              :cli {:main movie.cli.main}
              :dev {:dependencies [[org.clojure/tools.namespace "1.1.0"]]
