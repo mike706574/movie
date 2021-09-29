@@ -8,7 +8,6 @@
                  [com.github.seancorfield/next.jdbc "1.2.674"]
                  [com.stuartsierra/component "1.0.0"]
                  [com.taoensso/timbre "5.1.2"]
-                 [environ "1.2.0"]
                  [metosin/jsonista "0.3.4"]
                  [metosin/muuntaja "0.6.8"]
                  [metosin/reitit "0.5.15"]

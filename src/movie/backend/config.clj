@@ -1,9 +1,8 @@
 (ns movie.backend.config
-  (:require [environ.core :as environ]
-            [movie.common.config :as config]))
+  (:require [movie.common.config :as config]))
 
 (defn get-port []
-  (Integer. (or (environ/env :port) 7600)))
+  (Integer. (or (config/get-env-var "PORT") 7600)))
 
 (defn config
   ([]
@@ -21,7 +20,7 @@
                  :user "postgres"
                  :password "postgres"
                  :log? true}
-          "prod" {:url (or (environ/env "DATABASE_URL")
+          "prod" {:url (or (config/get-env-var "DATABASE_URL")
                            (throw (ex-info "DATABASE_URL not set" {})))}
           (throw (ex-info "Invalid env" {:env env})))
     :tmdb {:url "https://api.themoviedb.org/3"
