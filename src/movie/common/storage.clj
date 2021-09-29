@@ -6,7 +6,7 @@
 
 (def file clojure.java.io/file)
 
-(def sep (java.io.File/separator))
+(defn sep [] (java.io.File/separator))
 
 (defn delete-file!
   [arg]
@@ -93,7 +93,7 @@
     (subtitle-file? file) :subtitles
     :else :other))
 
-(defn metadata-path [path] (str path sep "metadata.json"))
+(defn metadata-path [path] (str path (sep) "metadata.json"))
 
 (defn read-movie-dir
   [dir]
@@ -111,7 +111,7 @@
       :other-files (mapv file-name other)}
      metadata)))
 
-(defn letter-path [path letter] (str path sep (str/lower-case letter)))
+(defn letter-path [path letter] (str path (sep) (str/lower-case letter)))
 
 (defn letter-movie-dirs [path letter]
   (let [letter-path (letter-path path letter)]
@@ -142,12 +142,12 @@
   [path movie]
   (let [{:keys [letter title video-files]} movie
         letter-path (letter-path path letter)
-        movie-dir (str letter-path sep title)]
+        movie-dir (str letter-path (sep) title)]
     (when-not (file-exists? letter-path)
       (make-directory! letter-path))
     (make-directory! movie-dir)
     (doseq [video-file video-files]
-      (let [video-file-path (str movie-dir sep video-file)]
+      (let [video-file-path (str movie-dir (sep) video-file)]
         (spit video-file-path video-file)))))
 
 (defn mock-dir!
