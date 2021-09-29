@@ -22,7 +22,7 @@
   :profiles {:uberjar {:env {:production true}
                        :aot :all}
              :web {:main movie.backend.main
-                   :prep-tasks ["frontend"]}
+                   :prep-tasks ["compile" "frontend"]}
              :cli {:main movie.cli.main}
              :dev {:dependencies [[org.clojure/tools.namespace "1.1.0"]]
                    :source-paths ["dev"]}}

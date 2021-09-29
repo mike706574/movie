@@ -5,11 +5,8 @@
             [movie.backend.system :as system]
             [taoensso.timbre :as log]))
 
-(defn start []
+(defn -main []
   (let [config (config/config)]
     (log/info "Starting server.")
     (component/start-system (system/system config))
     @(promise)))
-
-(defn -main []
-  (start))
