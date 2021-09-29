@@ -20,8 +20,10 @@
   :plugins [[lein-shell "0.5.0"]]
   :uberjar-name "movie.jar"
   :profiles {:uberjar {:env {:production true}
-                       :prep-tasks ["frontend"]
                        :aot :all}
+             :app {:main movie.backend.main
+                   :prep-tasks ["frontend"]}
+             :cli {:main movie.cli.main}
              :dev {:dependencies [[org.clojure/tools.namespace "1.1.0"]]
                    :source-paths ["dev"]}}
   :aliases {"frontend" ["shell" "npx" "shadow-cljs" "release" "frontend"]})

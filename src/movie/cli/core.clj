@@ -76,11 +76,11 @@
           (println (inc idx) "|" (right-pad title-width tmdb-title) "|" release-date "|" tmdb-popularity "|" (ellipsis 50 overview))))
       (let [num (loop []
                   (print "Choose: ")
+                  (flush)
                   (let [input (read-line)]
                     (if (= input "q")
                       (throw (ex-info "Quit" {}))
                       (let [num (parse-num input)]
-                        (print \newline)
                         (if (< 0 num (inc (count selected-movies)))
                           num
                           (recur))))))]
