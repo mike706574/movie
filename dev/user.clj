@@ -3,7 +3,6 @@
             [clojure.set :as set]
             [clojure.tools.namespace.repl :as repl]
             [com.stuartsierra.component :as component]
-            [environ.core :refer [env]]
             [movie.common.client :as client]
             [movie.common.storage :as storage]
             [movie.common.tmdb :as tmdb]

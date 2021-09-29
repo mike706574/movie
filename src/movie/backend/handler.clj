@@ -31,34 +31,34 @@
                :handler (fn [_]
                           (resp/resource-response "public/index.html"))}}]
 
-   ["/api/movies" {:get {:parameters {}
-                         :responses {200 {:body any?}}
-                         :handler (fn [_]
-                                    {:status 200 :body (repo/list-movies db)})}
-                   :post {:parameters {:body any?}
-                          :responses {200 {:body any?}}
-                          :handler (fn [{{movies :body} :parameters}]
-                                     (let [result (repo/sync-movies! db movies)]
-                                       {:status 200 :body result}))}}]
+   ["/api"
+    ["/movies" {:get {:parameters {}
+                      :responses {200 {:body any?}}
+                      :handler (fn [_]
+                                 {:status 200 :body (repo/list-movies db)})}
+                :post {:parameters {:body any?}
+                       :responses {200 {:body any?}}
+                       :handler (fn [{{movies :body} :parameters}]
+                                  (let [result (repo/sync-movies! db movies)]
+                                    {:status 200 :body result}))}}]
+    ["/movies/:uuid" {:get {:parameters {:path {:uuid string?}}
+                            :responses {200 {:body any?}}
+                            :handler (fn [{{{uuid :uuid} :path} :parameters}]
+                                       {:status 200
+                                        :body (repo/get-movie db {:uuid uuid})})}
+                      :post {:parameters {:body any?
+                                          :path {:uuid string?}}
+                             :responses {200 {:body any?}}
+                             :handler (fn [{{model :body {uuid :uuid} :path :as params} :parameters}]
+                                        (let [{rating :rating} model]
+                                          (repo/rate-movie! db uuid rating)
+                                          {:status 200 :body {:rating rating}}))}}]
 
-   ["/api/movies/:uuid" {:get {:parameters {:path {:uuid string?}}
-                               :responses {200 {:body any?}}
-                               :handler (fn [{{{uuid :uuid} :path} :parameters}]
-                                          {:status 200
-                                           :body (repo/get-movie db {:uuid uuid})})}
-                         :post {:parameters {:body any?
-                                             :path {:uuid string?}}
-                                :responses {200 {:body any?}}
-                                :handler (fn [{{model :body {uuid :uuid} :path :as params} :parameters}]
-                                           (let [{rating :rating} model]
-                                             (repo/rate-movie! db uuid rating)
-                                             {:status 200 :body {:rating rating}}))}}]
-
-   ["/tmdb/search" {:get {:parameters {:query {:title string?}}}
+    ["/tmdb/search" {:get {:parameters {:query {:title string?}}}
                     :responses {200 {:body any?}}
                     :handler (fn [{{{:keys [title]} :query} :parameters}]
                                (let [results (tmdb/search-movies tmdb title)]
-                                 {:status 200 :body results}))}]
+                                 {:status 200 :body results}))}]]
 
    ["/*" (ring/create-resource-handler)]])
 
@@ -74,10 +74,10 @@
     :conflicts (constantly nil)}))
 
 (defn handler [deps]
-  (->> deps
-       router
-       ring/ring-handler
-       wrap-logging))
+  (ring/ring-handler
+   (router deps)
+   (ring/create-default-handler)
+   {:middleware [wrap-logging]}))
 
 (defprotocol IHandlerFactory
   (build [hf]))
