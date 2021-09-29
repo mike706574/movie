@@ -14,10 +14,10 @@
             :retry-options {:initial-wait 0
                             :max-attempts 3}}}
     (case env
-      "dev" {:client {:url "http://localhost:7600"}
-             :path "movies"}
-      "prod" {:client {:url "https://movie-mike.herokuapp.com"}
-              :path "TODO"}))))
+      "dev" {:path "movies"
+             :client {:url "http://localhost:7600"}}
+      "prod" {:path "movies"
+              :client {:url "https://movie-mike.herokuapp.com"}}))))
 
 (defn deps
   [config]

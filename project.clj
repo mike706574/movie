@@ -13,6 +13,7 @@
                  [metosin/reitit "0.5.15"]
                  [migratus "1.3.5"]
                  [org.clojure/clojure "1.11.0-alpha2"]
+                 [org.clojure/tools.cli "1.0.206"]
                  [org.postgresql/postgresql "42.2.23"]
                  [selmer "1.12.40"]]
   :min-lein-version "2.0.0"
