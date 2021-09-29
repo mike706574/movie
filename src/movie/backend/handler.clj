@@ -45,7 +45,7 @@
                                :responses {200 {:body any?}}
                                :handler (fn [{{{uuid :uuid} :path} :parameters}]
                                           {:status 200
-                                           :body (repo/get-movie db uuid)})}
+                                           :body (repo/get-movie db {:uuid uuid})})}
                          :post {:parameters {:body any?
                                              :path {:uuid string?}}
                                 :responses {200 {:body any?}}

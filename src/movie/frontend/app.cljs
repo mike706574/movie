@@ -263,6 +263,32 @@
 
 ;; -- Views --
 
+;; Rating
+(defn serialize-rating [rating] (if rating (str rating) ""))
+
+(defn rating-form [{:keys [uuid rating]}]
+  (let [rating-atom (r/atom (serialize-rating rating))]
+    (fn []
+      (let [value @rating-atom
+            none? (= value "")
+            changed? (not= (serialize-rating rating) value)
+            valid? (or none? (boolean (re-matches #"^(10|10.0|[0-9](\.[0-9])?)$" value)))
+            disabled? (or (not valid?) (not changed?))
+            on-click (when-not disabled? #(rf/dispatch [:rate-movie uuid (js/parseFloat value)]))]
+        [:div.input-group
+         [:input {:type "text"
+                  :value value
+                  :class (classes ["form-control" ["is-invalid" (not valid?)]])
+                  :step "0.1"
+                  :min "0"
+                  :max "10"
+                  :on-change #(reset! rating-atom (-> % .-target .-value))}]
+         [:button.btn.btn-primary {:disabled disabled?
+                                   :class (classes ["btn" (str "btn-" (if valid? "primary" "danger"))])
+                                   :on-click on-click}
+          "Rate"]]))))
+
+
 (defn movie-item
   [{:keys [movie-path]}]
   [:li {:key movie-path} movie-path])
@@ -328,7 +354,8 @@
                      uuid
                      overview
                      tmdb-backdrop-path
-                     release-date]} movies]
+                     release-date
+                     rating] :as movie} movies]
          [:div.col {:key uuid}
           [:div.card.mb-3
            [:img.card-img-top
@@ -345,35 +372,8 @@
             [:h6.card-subtitle.text-muted
              {:style {"display" "inline" "marginLeft" "0.25em"}}
              release-date]
-            [:p.card-text (ellipsis 150 overview)]]]])])))
-
-(defn bottom
-  []
-  [:<>
-   [:nav
-    [movie-letter-input]
-    [movie-filter-input]
-    [movie-pagination]]
-   [movies]
-   [:nav
-    [movie-pagination]]])
-
-(defn rating-text [rating] (if rating (str rating) ""))
-
-(defn rating-form [{:keys [uuid rating]}]
-  (let [rating-atom (r/atom (rating-text rating))]
-    (fn []
-      (let [new-rating @rating-atom
-            changed? (= (rating-text rating) new-rating)
-            disabled? (and (not= new-rating "") (js/Number.isNaN (js/parseFloat new-rating)))]
-        [:form.mb-3.w-25
-         [:div.input-group
-          [:input.form-control {:type "number"
-                                :value new-rating
-                                :on-change #(reset! rating-atom (-> % .-target .-value))}]
-          [:button.btn.btn-primary {:disabled disabled?
-                                    :on-click #(rf/dispatch [:rate-movie uuid (js/parseFloat new-rating)])}
-           "Rate"]]]))))
+            [:p.card-text (ellipsis 150 overview)]
+            [rating-form movie]]]])])))
 
 (defn movie-page
   []
@@ -386,38 +386,47 @@
        [:img.img-fluid.mb-3
         {:src (str "http://image.tmdb.org/t/p/w780" tmdb-poster-path)}]]
       [:div.col-md-8
-       [:h6 "Overview"]
-       [:blockquote.blockquote overview]
-       [:h6 "Rating"]
-       [rating-form movie]
-       [:h6 "Info"]
-       [:table.table.table-bordered
-        [:tbody
-         [:tr
-          [:th {:scope "row"} "Released"]
-          [:td release-date]]
-         [:tr
-          [:th {:scope "row"} "Runtime"]
-          [:td runtime]]
-         [:tr
-          [:th {:scope "row"} "UUID"]
-          [:td uuid]]
-         [:tr
-          [:th {:scope "row"} "ID"]
-          [:td id]]
-         [:tr
-          [:th {:scope "row"} "Links"]
-          [:td
-           [:a {:href (str "https://www.themoviedb.org/movie/" tmdb-id)
-                :style {"marginRight" "0.5em"}}
-            "TMDB"]
-           [:a {:href (str "https://www.imdb.org/title/" imdb-id)}
-            "IMDB"]]]]]]]]))
+       [:section
+        [:h6 "Overview"]
+        [:blockquote.blockquote overview]]
+       [:section.mb-3
+        [:h6 "Rating"]
+        [rating-form movie]]
+       [:section.mb-3
+        [:h6 "Info"]
+        [:table.table.table-bordered
+         [:tbody
+          [:tr
+           [:th {:scope "row"} "Released"]
+           [:td release-date]]
+          [:tr
+           [:th {:scope "row"} "Runtime"]
+           [:td runtime]]
+          [:tr
+           [:th {:scope "row"} "UUID"]
+           [:td uuid]]
+          [:tr
+           [:th {:scope "row"} "ID"]
+           [:td id]]
+          [:tr
+           [:th {:scope "row"} "Links"]
+           [:td
+            [:a {:href (str "https://www.themoviedb.org/movie/" tmdb-id)
+                 :style {"marginRight" "0.5em"}}
+             "TMDB"]
+            [:a {:href (str "https://www.imdb.org/title/" imdb-id)}
+             "IMDB"]]]]]]]]]))
 
 (defn home-page []
   [:<>
    [:p "These are my movies."]
-   [bottom]])
+   [:nav
+    [movie-letter-input]
+    [movie-filter-input]
+    [movie-pagination]]
+   [movies]
+   [:nav
+    [movie-pagination]]])
 
 (defn app []
   (let [{:keys [status error-message]} @(rf/subscribe [:state])
@@ -453,7 +462,7 @@
      :params {:path [:map [:uuid string?]]}
      :controllers
      [{:parameters {:path [:uuid]}
-       :start (fn [{{:uuid uuid} :path}]
+       :start (fn [{{uuid :uuid} :path}]
                 (println "Entering movie page for uuid" uuid)
                 (rf/dispatch [:fetch-movie uuid]))
        :stop (fn []

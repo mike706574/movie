@@ -113,7 +113,7 @@
 
   (def akira (:uuid (repo/get-movie db {:title "Akira"})))
 
-  (repo/get-movie db {:uuid akira})
+  (repo/get-movie db {:uuid "21f0ba2d-ad95-41e3-8156-8dbc04e0ee16"})
   (repo/get-movie-id db akira)
 
   (repo/rate-movie! db akira 3.5)
