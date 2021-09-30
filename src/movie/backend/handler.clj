@@ -61,9 +61,6 @@
             {:status 500}))))))
 
 (defn check-account [db admin-password email password]
-  (log/debug "Checking account" {:admin-password admin-password
-                                 :email email
-                                 :password password})
   (if-let [account (if (= email "admin")
                      {:email "admin" :password admin-password}
                      (repo/get-account db {:email email}))]

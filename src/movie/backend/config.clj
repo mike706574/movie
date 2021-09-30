@@ -9,14 +9,13 @@
 (def admin-password-var "ADMIN_PASSWORD")
 
 (defn get-admin-password []
-  (println "ADMIN PASSWORD" (System/getenv "ADMIN_PASSWORD"))
   (or (config/get-env-var admin-password-var)
       (throw (ex-info "Admin password environment variable not set."
                       {:var admin-password-var}))))
 
 (defn config
   ([]
-   (config {:admin-password ()
+   (config {:admin-password (get-admin-password)
             :env (config/get-env)
             :port (get-port)}))
   ([{:keys [admin-password env port]}]

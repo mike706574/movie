@@ -145,6 +145,7 @@
 (def prod-deps (cli-config/deps prod-cli-config))
 
 (comment
+  (backend-config/config)
   (core/sync-movies! prod-deps)
 
   (db/reset prod-db)
