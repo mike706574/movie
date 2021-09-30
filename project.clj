@@ -4,6 +4,7 @@
   :license {:name "Eclipse Public License - v 1.0"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[aleph "0.4.6"]
+                 [buddy/buddy-auth "3.0.1"]
                  [clj-http "3.12.3"]
                  [com.github.seancorfield/next.jdbc "1.2.674"]
                  [com.stuartsierra/component "1.0.0"]

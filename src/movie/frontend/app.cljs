@@ -1,7 +1,7 @@
 (ns movie.frontend.app
   (:require [ajax.core :as ajax]
+            [cljs.pprint :as pprint]
             [clojure.string :as str]
-            [clojure.pprint :refer [pprint]]
             [day8.re-frame.http-fx]
             [movie.frontend.alphabet :as alphabet]
             [movie.frontend.nav :as nav]
@@ -40,6 +40,14 @@
   ([k params query]
    (rfez/href k params query)))
 
+(defn auth-headers [user]
+  (if user
+    {"Authorization" (str "Token " (:token user))}
+    {}))
+
+(def json-req-format (ajax/json-request-format {:keywords? true}))
+(def json-resp-format (ajax/json-response-format {:keywords? true}))
+
 ;; -- Event Handlers --
 
 (rf/reg-event-db
@@ -47,7 +55,8 @@
  (fn [db _]
    (merge db
           {:current-route nil
-           :status :loading
+           :user nil
+           :status :ok
            :page-number nil
            :movie-letter nil
            :movie-letter-input-type :full
@@ -66,19 +75,46 @@
           controllers (rfc/apply-controllers (:controllers old-match) new-match)]
       (assoc db :current-route (assoc new-match :controllers controllers)))))
 
+;; Login
+(defn login-request [params]
+  {:method :post
+   :uri "/login"
+   :format json-req-format
+   :response-format json-resp-format
+   :params params
+   :on-success [:process-login]
+   :on-failure [:handle-failure]})
+
+(rf/reg-event-fx
+ :login
+ (fn [{db :db} [_ params]]
+   {:http-xhrio (login-request params)}))
+
+(rf/reg-event-fx
+ :logout
+ (fn [{db :db} [_ params]]
+   {}))
+
+(rf/reg-event-fx
+ :process-login
+ (fn [{db :db} [_ response]]
+   {:db (assoc db :user (js->clj response))
+    :push-state [:home]}))
+
 ;; Fetching movies
-(defn movies-request []
+(defn movies-request [user]
   {:method :get
    :uri "/api/movies"
-   :response-format (ajax/json-response-format {:keywords? true})
+   :headers (auth-headers user)
+   :response-format json-resp-format
    :on-success [:process-movies]
    :on-failure [:handle-failure]})
 
 (rf/reg-event-fx
  :fetch-movies
  (fn [{db :db} _]
-   {:http-xhrio (movies-request)
-    :db (assoc db :status :loading)}))
+   {:db (assoc db :status :loading)
+    :http-xhrio (movies-request (:user db))}))
 
 (rf/reg-event-db
  :process-movies
@@ -90,23 +126,24 @@
                :movies (js->clj response)}))))
 
 ;; Fetching a movie
-(defn movie-request [uuid]
+(defn movie-request [user uuid]
   {:method :get
    :uri (str "/api/movies/" uuid)
-   :response-format (ajax/json-response-format {:keywords? true})
+   :headers (auth-headers user)
+   :response-format json-resp-format
    :on-success [:process-movie]
    :on-failure [:handle-failure]})
 
 (rf/reg-event-fx
  :fetch-movie
  (fn [{db :db} [_ uuid]]
-   {:http-xhrio (movie-request uuid)
+   {:http-xhrio (movie-request (:user db) uuid)
     :db (assoc db :status :loading)}))
 
 (rf/reg-event-fx
  :refresh-movie
  (fn [{db :db} [_ uuid]]
-   {:http-xhrio (movie-request uuid)}))
+   {:http-xhrio (movie-request (:user db) uuid)}))
 
 (rf/reg-event-db
  :process-movie
@@ -114,19 +151,20 @@
    (assoc db :status :loaded :movie (js->clj response))))
 
 ;; Rating a movie
-(defn rate-movie-request [uuid rating]
+(defn rate-movie-request [user uuid rating]
   {:method :post
    :params {:rating rating}
    :uri (str "/api/movies/" uuid)
-   :format (ajax/json-request-format {:keywords? true})
-   :response-format (ajax/json-response-format {:keywords? true})
+   :headers (auth-headers user)
+   :format json-req-format
+   :response-format json-resp-format
    :on-success [:refresh-movie uuid]
    :on-failure [:handle-failure]})
 
 (rf/reg-event-fx
  :rate-movie
  (fn [{db :db} [_ uuid rating]]
-   {:http-xhrio (rate-movie-request uuid rating)}))
+   {:http-xhrio (rate-movie-request (:token db) uuid rating)}))
 
 ;; Movie pagination
 (rf/reg-event-db
@@ -181,9 +219,8 @@
 (rf/reg-event-db
  :handle-failure
  (fn [db [_ response]]
-   (pprint response)
    (merge db {:status :error
-              :error-message (:status-text response)})))
+              :error response})))
 
 (rf/reg-event-fx
   :navigate
@@ -203,6 +240,16 @@
     (:current-route db)))
 
 (rf/reg-sub
+  :state
+  (fn [db _]
+    (select-keys db [:status :error :user])))
+
+(rf/reg-sub
+  :user
+  (fn [db _]
+    (:user db)))
+
+(rf/reg-sub
   :movies
   (fn [db _]
     (:movies db)))
@@ -211,11 +258,6 @@
   :movie
   (fn [db _]
     (:movie db)))
-
-(rf/reg-sub
-  :state
-  (fn [db _]
-    (select-keys db [:status :error-message])))
 
 (rf/reg-sub
   :movie-count
@@ -243,7 +285,7 @@
     {:filtered-movie-count (count filtered-movies)
      :page-count page-count
      :page-number page-number
-     :page-movies page-movies}))
+     :movies page-movies}))
 
 (rf/reg-sub
   :page
@@ -345,7 +387,8 @@
 
 (defn movies
   []
-  (let [movies (:page-movies @(rf/subscribe [:page]))]
+  (let [movies (:movies @(rf/subscribe [:page]))
+        user @(rf/subscribe [:user])]
     (if (empty? movies)
       [:div.text-center.pt-5.pb-5
        [:h3 "No movies found."]]
@@ -373,11 +416,13 @@
              {:style {"display" "inline" "marginLeft" "0.25em"}}
              release-date]
             [:p.card-text (ellipsis 150 overview)]
-            [rating-form movie]]]])])))
+            (when user
+              [rating-form movie])]]])])))
 
 (defn movie-page
   []
-  (let [{:keys [title overview tmdb-poster-path tmdb-id imdb-id release-date runtime rating uuid id] :as movie} @(rf/subscribe [:movie])]
+  (let [{:keys [title overview tmdb-poster-path tmdb-id imdb-id release-date runtime rating uuid id] :as movie} @(rf/subscribe [:movie])
+        user @(rf/subscribe [:user])]
     [:<>
      [:p "This is a movie."]
      [:h2 title]
@@ -391,7 +436,8 @@
         [:blockquote.blockquote overview]]
        [:section.mb-3
         [:h6 "Rating"]
-        [rating-form movie]]
+        (when user
+          [rating-form movie])]
        [:section.mb-3
         [:h6 "Info"]
         [:table.table.table-bordered
@@ -417,6 +463,43 @@
             [:a {:href (str "https://www.imdb.org/title/" imdb-id)}
              "IMDB"]]]]]]]]]))
 
+(defn login-page []
+  (let [email-atom (r/atom "")
+        password-atom (r/atom "")]
+    (fn []
+      (let [email @email-atom
+            password @password-atom
+            params {:email email :password password}]
+        [:<>
+         [:p "You're trying to log in."]
+         [:h2 "Login"]
+         [:div.row.mb-3
+          [:label.col-sm-2.col-form-label
+           {:for "email"}
+           "Email"]
+          [:div.col-sm-10
+           [:input.form-control
+            {:id "email"
+             :type "email"
+             :name "email"
+             :value email
+             :on-change #(reset! email-atom (-> % .-target .-value))}]]]
+         [:div.row.mb-3
+          [:label.col-sm-2.col-form-label
+           {:for "password"}
+           "Password"]
+          [:div.col-sm-10
+           [:input.form-control
+            {:id "password"
+             :type "password"
+             :name "password"
+             :value password
+             :on-change #(reset! password-atom (-> % .-target .-value))}]]]
+         [:button.btn.btn-primary
+          {:type "submit"
+           :on-click #(rf/dispatch [:login params])}
+          "Submit"]]))))
+
 (defn home-page []
   [:<>
    [:p "These are my movies."]
@@ -429,14 +512,25 @@
     [movie-pagination]]])
 
 (defn app []
-  (let [{:keys [status error-message]} @(rf/subscribe [:state])
+  (let [{:keys [status error user]} @(rf/subscribe [:state])
         current-route @(rf/subscribe [:current-route])]
     [:div.container
      {:style {"marginTop" "1em"}}
-     [:h1 "Movies"]
+     [:div.row
+      [:div.col.auto
+       [:h1 "Movies"]]
+      [:div.col-md-4
+       (if user
+         [:div.float-end
+          (:email user)
+          [:button.btn.btn-secondary.ms-2
+           {:type "button" :style {"display" "inline"}}
+           "Logout"]]
+         [:a.float-end {:href (href :login)} "Login"])]]
      (case status
        :loading [:p "Loading..."]
-       :error [:p (str "Error: " error-message)]
+       :error [:pre
+               (with-out-str (pprint/pprint error))]
        (when current-route
          [(-> current-route :data :view)]))]))
 
@@ -454,6 +548,13 @@
                 (rf/dispatch [:fetch-movies]))
        :stop (fn []
                (println "Leaving home page"))}]}]
+   ["login"
+    {:name :login
+     :view login-page
+     :link-text "Login"
+     :controllers
+     [{:start (fn [] (println "Entering login page"))
+       :stop (fn [] (println "Leaving login page"))}]}]
 
    ["movies/:uuid"
     {:name :movie

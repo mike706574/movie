@@ -1,5 +1,11 @@
 (ns movie.backend.handler
-  (:require [com.stuartsierra.component :as component]
+  (:require [buddy.auth :as auth]
+            [buddy.auth.backends :as auth-backends]
+            [buddy.auth.middleware :as auth-middleware]
+            [buddy.sign.jwt :as auth-jwt]
+            [clojure.edn :as edn]
+            [clojure.string :as str]
+            [com.stuartsierra.component :as component]
             [movie.backend.repo :as repo]
             [movie.common.tmdb :as tmdb]
             [muuntaja.core :as m]
@@ -11,18 +17,45 @@
             [ring.util.response :as resp]
             [taoensso.timbre :as log]))
 
+(def secret "secret")
+
+(def alg :hs512)
+(def sign #(auth-jwt/sign % secret {:alg alg}))
+(def unsign #(auth-jwt/unsign % secret {:alg alg}))
+
+(def token-backend
+  (auth-backends/jws {:secret secret
+                      :options {:alg alg}
+                      :on-error (fn [req e]
+                                  (.printStackTrace e))}))
+
+(defn auth [handler]
+  (auth-middleware/wrap-authentication handler token-backend))
+
+(defn auth-required [handler]
+  (fn [req]
+    (if (auth/authenticated? req)
+      (handler req)
+      {:status 401 :body {:error "Not authorized"}})))
+
 (defn wrap-logging
   [handler]
   (fn [{:keys [uri method] :as request}]
-    (let [label (str method " \"" uri "\"")]
-      (try
-        (log/info label)
-        (let [{:keys [status] :as response} (handler request)]
-          (log/info (str label " -> " status))
-          response)
-        (catch Exception e
-          (log/error e label)
-          {:status 500})))))
+    (if (str/starts-with? uri "/js/")
+      (handler request)
+      (let [label (str method " \"" uri "\"")]
+        (try
+          (log/info label)
+          (let [{:keys [status] :as response} (handler request)]
+            (log/info (str label " -> " status))
+            response)
+          (catch Exception e
+            (log/error e label)
+            {:status 500}))))))
+
+(defn find-user [email password]
+  (when (and (= email "mike706574@gmail.com") (= password "mike"))
+    {:email email}))
 
 (defn routes
   [{:keys [db tmdb]}]
@@ -31,22 +64,37 @@
                :handler (fn [_]
                           (resp/resource-response "public/index.html"))}}]
 
-   ["/api"
+   ["/login" {:post {:parameters {:body {:email string? :password string?}}
+                     :responses {200 {:body any?}}
+                     :handler (fn [{{{:keys [email password]} :body :as params} :parameters :as req}]
+
+                                (if-let [user (find-user email password)]
+                                  (let [token (sign {:email email})]
+                                    {:status 200 :body {:email email :token token}})
+                                  {:status 400 :body {:message "User not found."}}))}}]
+
+   ["/api" {:middleware [auth]}
     ["/movies" {:get {:parameters {}
                       :responses {200 {:body any?}}
-                      :handler (fn [_]
+                      :handler (fn [req]
                                  {:status 200 :body (repo/list-movies db)})}
-                :post {:parameters {:body any?}
+
+                :post {:middleware [auth-required]
+                       :parameters {:body any?}
                        :responses {200 {:body any?}}
                        :handler (fn [{{movies :body} :parameters}]
                                   (let [result (repo/sync-movies! db movies)]
                                     {:status 200 :body result}))}}]
+
     ["/movies/:uuid" {:get {:parameters {:path {:uuid string?}}
                             :responses {200 {:body any?}}
-                            :handler (fn [{{{uuid :uuid} :path} :parameters}]
-                                       {:status 200
-                                        :body (repo/get-movie db {:uuid uuid})})}
-                      :post {:parameters {:body any?
+                            :handler (fn [{{{uuid :uuid} :path} :parameters :as req}]
+                                       (if-let [movie (repo/get-movie db {:uuid uuid})]
+                                         {:status 200 :body movie}
+                                         {:status 404 :body {:uuid uuid}}))}
+
+                      :post {:middleware [auth-required]
+                             :parameters {:body any?
                                           :path {:uuid string?}}
                              :responses {200 {:body any?}}
                              :handler (fn [{{model :body {uuid :uuid} :path :as params} :parameters}]
