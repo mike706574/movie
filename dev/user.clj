@@ -135,5 +135,17 @@
   ;; core
   (core/sync-movies! deps)
   (core/list-movies deps)
+)
 
+(def prod-db
+  (jdbc/get-datasource "TODO"))
+
+(def prod-cli-config (cli-config/config {:env "prod" :password "g3%KWjvQ3+9jh7syR?P5n^%g_u?6Pq&y+#KRf&!ucXC55T+!62kmpMLUhMPCYWAR"}))
+
+(def prod-deps (cli-config/deps prod-cli-config))
+
+(comment
+  (core/sync-movies! prod-deps)
+
+  (db/reset prod-db)
   )

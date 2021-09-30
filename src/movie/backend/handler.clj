@@ -61,6 +61,9 @@
             {:status 500}))))))
 
 (defn check-account [db admin-password email password]
+  (log/debug "Checking account" {:admin-password admin-password
+                                 :email email
+                                 :password password})
   (if-let [account (if (= email "admin")
                      {:email "admin" :password admin-password}
                      (repo/get-account db {:email email}))]
@@ -105,7 +108,8 @@
                 :post {:middleware [auth-required admin-required]
                        :parameters {:body any?}
                        :responses {200 {:body any?}}
-                       :handler (fn [{{movies :body} :parameters}]
+                       :handler (fn [{{movies :body} :parameters identity :identity}]
+                                  (log/debug "Syncing movies." {:identity identity})
                                   (let [result (repo/sync-movies! db movies)]
                                     {:status 200 :body result}))}}]
 
