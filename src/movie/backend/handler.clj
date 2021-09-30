@@ -39,6 +39,12 @@
       (handler req)
       {:status 401 :body {:error "Not authorized"}})))
 
+(defn admin-required [handler]
+  (fn [req]
+    (if (= (get-in req [:identity :email]) "admin")
+      (handler req)
+      {:status 403 :body {:error "Must be an admin"}})))
+
 (defn wrap-logging
   [handler]
   (fn [{:keys [uri method] :as request}]
@@ -54,25 +60,26 @@
             (log/error e label)
             {:status 500}))))))
 
-(defn check-account [db email password]
-  (if-let [account (repo/get-account db {:email email})]
+(defn check-account [db admin-password email password]
+  (if-let [account (if (= email "admin")
+                     {:email "admin" :password admin-password}
+                     (repo/get-account db {:email email}))]
     (if (:valid (auth-hashers/verify password (:password account)))
       {:account (dissoc account :password)}
       {:error "invalid-password"})
     {:error "missing-account"}))
 
 (defn routes
-  [{:keys [db tmdb]}]
+  [{:keys [admin-password db tmdb]}]
   [["/" {:get {:parameters {}
                :responses  {200 {:body any?}}
-               :handler (fn [_]
-                          (resp/resource-response "public/index.html"))}}]
+               :handler (fn [_] (resp/resource-response "public/index.html"))}}]
 
    ["/login" {:post {:parameters {:body {:email string? :password string?}}
                      :responses {200 {:body any?}}
                      :handler (fn [{{{:keys [email password]} :body :as params} :parameters :as req}]
 
-                                (let [{:keys [error account]} (check-account db email password)]
+                                (let [{:keys [error account]} (check-account db admin-password email password)]
                                   (if error
                                     {:status 401 :body {:error error}}
                                     (let [token (sign account)]
@@ -81,8 +88,10 @@
    ["/register" {:post {:parameters {:body {:email string? :password string?}}
                         :responses {200 {:body any?}}
                         :handler (fn [{{{:keys [email password]} :body :as params} :parameters :as req}]
-                                   (repo/insert-account! db {:email email :password (auth-hashers/derive password)})
-                                   {:status 200 :body {:email email}})}}]
+                                   (let [hashed-password (auth-hashers/derive password)
+                                         template {:email email :password hashed-password}]
+                                     (repo/insert-account! db template)
+                                     {:status 200 :body {:email email}}))}}]
 
    ["/api" {:middleware [auth]}
     ["/movies" {:get {:parameters {}
@@ -93,7 +102,7 @@
                                           (repo/list-account-movies db (:email identity))
                                           (repo/list-movies db))})}
 
-                :post {:middleware []
+                :post {:middleware [auth-required admin-required]
                        :parameters {:body any?}
                        :responses {200 {:body any?}}
                        :handler (fn [{{movies :body} :parameters}]
@@ -145,7 +154,7 @@
 (defprotocol IHandlerFactory
   (build [hf]))
 
-(defrecord HandlerFactory [db movies tmdb]
+(defrecord HandlerFactory [admin-password db movies tmdb]
   IHandlerFactory
   (build [this]
     (handler this))
@@ -153,7 +162,7 @@
   (start [this] this)
   (stop [this] this))
 
-(defn factory []
+(defn factory [{:keys [admin-password]}]
   (component/using
-   (map->HandlerFactory {})
+   (map->HandlerFactory {:admin-password admin-password})
    [:db :tmdb]))

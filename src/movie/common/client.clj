@@ -16,10 +16,10 @@
 
 (defn- get-auth-headers [{:keys [url email password]}]
   (if email
-    {}
     (let [token (:token (post-request {:url (str url "/login")
                                        :body {:email email :password password}}))]
-      {"Authorization" (str "Token " token)})))
+      {"Authorization" (str "Token " token)})
+    {}))
 
 (defprotocol SystemClient
   (register [this email password])

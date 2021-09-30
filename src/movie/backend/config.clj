@@ -1,15 +1,26 @@
 (ns movie.backend.config
   (:require [movie.common.config :as config]))
 
+(def port-var "PORT")
+
 (defn get-port []
-  (Integer. (or (config/get-env-var "PORT") 7600)))
+  (Integer. (or (config/get-env-var port-var) 7600)))
+
+(def admin-password-var "ADMIN_PASSWORD")
+
+(defn get-admin-password []
+  (or (config/get-env-var admin-password-var)
+      (throw (ex-info "Admin password environment variable not set."
+                      {:var admin-password-var}))))
 
 (defn config
   ([]
-   (config {:env (config/get-env)
+   (config {:admin-password ()
+            :env (config/get-env)
             :port (get-port)}))
-  ([{:keys [env port]}]
+  ([{:keys [admin-password env port]}]
    {:port port
+    :admin-password admin-password
     :db (case env
           "dev" {:dbtype "postgresql"
                  :classname "org.postgresql.Driver"

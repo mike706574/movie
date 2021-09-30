@@ -8,5 +8,5 @@
   [config]
   {:db (db/new-db (:db config))
    :service (service/service config)
-   :handler-factory (handler/factory)
+   :handler-factory (handler/factory config)
    :tmdb (tmdb/client (:tmdb config))})

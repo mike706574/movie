@@ -1,5 +1,6 @@
 (ns user
   (:require [aleph.http :as http]
+            [buddy.hashers :as auth-hashers]
             [clojure.set :as set]
             [clojure.tools.namespace.repl :as repl]
             [com.stuartsierra.component :as component]
@@ -23,7 +24,12 @@
 (def port 7600)
 
 ;; backend
-(def config (backend-config/config {:env "dev" :port port}))
+(def admin-password "admin!")
+(def hashed-admin-password (auth-hashers/derive admin-password))
+
+(def config (backend-config/config {:admin-password hashed-admin-password
+                                    :env "dev"
+                                    :port port}))
 
 (defonce system nil)
 
@@ -60,7 +66,7 @@
 (def db (db/new-db (:db config)))
 (def tmdb (tmdb/client (:tmdb config)))
 
-(def cli-config (cli-config/config {:env "dev" :password "admin"}))
+(def cli-config (cli-config/config {:env "dev" :password admin-password}))
 (def deps (cli-config/deps cli-config))
 
 (def client (client/client (:client cli-config)))
@@ -129,4 +135,5 @@
   ;; core
   (core/sync-movies! deps)
   (core/list-movies deps)
+
   )

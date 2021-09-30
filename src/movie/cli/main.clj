@@ -11,7 +11,8 @@
   [["-e" "--env ENV" "Environment"
     :default "prod"]
    ["-u" "--client-url URL" "Client URL"]
-   ["-p" "--path PATH" "Path"]
+   ["-d" "--dir DIR" "Directory path"]
+   ["-p" "--password PASSWORD" "Password"]
    ["-h" "--help"]])
 
 (defn usage [options-summary]
@@ -58,10 +59,11 @@
   (let [{:keys [action options exit-message ok?]} (validate-args args)]
     (if exit-message
       (exit (if ok? 0 1) exit-message)
-      (let [{:keys [env client-url path]} options
+      (let [{:keys [dir client-url env password]} options
             config (-> (config/config {:env env})
                        (assoc-in-when [:client :url] client-url)
-                       (assoc-in-when [:path] path))
+                       (assoc-in-when [:client :password] password)
+                       (assoc-in-when [:path] dir))
             deps (config/deps config)]
         (println "Options" options)
         (println "Config" config)
