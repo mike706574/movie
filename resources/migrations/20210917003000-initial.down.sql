@@ -1,3 +1,3 @@
-DROP VIEW movie_view;
+DROP VIEW account_movie_view, movie_average_rating_view, movie_rating_view, movie_view;
 --;;
-DROP TABLE movie_rating, movie;
+DROP TABLE account, movie_rating, movie;

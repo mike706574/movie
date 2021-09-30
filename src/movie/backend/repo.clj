@@ -63,33 +63,49 @@
                   items)]
     (jdbc/execute-batch! db sql bindings {})))
 
+(defn get-movie [db keys]
+  (first (select-items db :movie {:keys keys})))
+
+(defn get-account [db keys]
+  (first (select-items db :account {:keys keys :relation :account})))
+
+(defn get-movie-id [db uuid]
+  (:id (get-movie db {:uuid uuid})))
+
+(defn get-account-id [db email]
+  (:id (get-account db {:email email})))
+
+(defn list-accounts [db]
+  (select-items db :account))
+
+(defn insert-account! [db account]
+  (insert-item! db :account account))
+
 (defn deactivate-item! [db table keys]
   (sql/update! db (underscored table) {:active false} (adjust-keys table keys)))
 
 (defn list-movies [db]
   (select-items db :movie))
 
+(defn list-account-movies [db email]
+  (select-items db :account-movie {:keys {:account-id (get-account-id db email)}}))
+
 (defn clear-movies! [db]
   (jdbc/execute! db ["DELETE FROM movie"]))
 
-(def fields [:title :letter :path :release-date :overview :original-language :runtime :tmdb-id :imdb-id :tmdb-title :tmdb-popularity :tmdb-backdrop-path :tmdb-poster-path])
+(def movie-fields [:title :letter :path :release-date :overview :original-language :runtime :tmdb-id :imdb-id :tmdb-title :tmdb-popularity :tmdb-backdrop-path :tmdb-poster-path])
 
 (defn insert-movies! [db movies]
-  (insert-items! db :movie (conj fields :uuid) movies))
+  (insert-items! db :movie (conj movie-fields :uuid) movies))
 
 (defn update-movies! [db movies]
-  (update-items! db :movie :uuid fields movies))
+  (update-items! db :movie :uuid movie-fields movies))
 
-(defn get-movie [db keys]
-  (first (select-items db :movie {:keys keys})))
-
-(defn get-movie-id [db uuid]
-  (:id (get-movie db {:uuid uuid})))
-
-(defn rate-movie! [db uuid rating]
-  (let [id (get-movie-id db uuid)]
-    (deactivate-item! db :movie-rating {:movie-id id})
-    (insert-item! db :movie-rating {:movie-id id :rating rating})))
+(defn rate-movie! [db uuid email rating]
+  (let [movie-id (get-movie-id db uuid)
+        account-id (get-account-id db email)]
+    (deactivate-item! db :movie-rating {:movie-id movie-id :account-id account-id})
+    (insert-item! db :movie-rating {:movie-id movie-id :account-id account-id :rating rating})))
 
 (defn sync-movies! [db movies]
   (let [stored-movies (list-movies db)

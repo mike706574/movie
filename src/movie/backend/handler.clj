@@ -2,6 +2,7 @@
   (:require [buddy.auth :as auth]
             [buddy.auth.backends :as auth-backends]
             [buddy.auth.middleware :as auth-middleware]
+            [buddy.hashers :as auth-hashers]
             [buddy.sign.jwt :as auth-jwt]
             [clojure.edn :as edn]
             [clojure.string :as str]
@@ -53,9 +54,12 @@
             (log/error e label)
             {:status 500}))))))
 
-(defn find-user [email password]
-  (when (and (= email "mike706574@gmail.com") (= password "mike"))
-    {:email email}))
+(defn check-account [db email password]
+  (if-let [account (repo/get-account db {:email email})]
+    (if (:valid (auth-hashers/verify password (:password account)))
+      {:account (dissoc account :password)}
+      {:error "invalid-password"})
+    {:error "missing-account"}))
 
 (defn routes
   [{:keys [db tmdb]}]
@@ -68,18 +72,28 @@
                      :responses {200 {:body any?}}
                      :handler (fn [{{{:keys [email password]} :body :as params} :parameters :as req}]
 
-                                (if-let [user (find-user email password)]
-                                  (let [token (sign {:email email})]
-                                    {:status 200 :body {:email email :token token}})
-                                  {:status 400 :body {:message "User not found."}}))}}]
+                                (let [{:keys [error account]} (check-account db email password)]
+                                  (if error
+                                    {:status 401 :body {:error error}}
+                                    (let [token (sign account)]
+                                      {:status 200 :body (assoc account :token token)}))))}}]
+
+   ["/register" {:post {:parameters {:body {:email string? :password string?}}
+                        :responses {200 {:body any?}}
+                        :handler (fn [{{{:keys [email password]} :body :as params} :parameters :as req}]
+                                   (repo/insert-account! db {:email email :password (auth-hashers/derive password)})
+                                   {:status 200 :body {:email email}})}}]
 
    ["/api" {:middleware [auth]}
     ["/movies" {:get {:parameters {}
                       :responses {200 {:body any?}}
-                      :handler (fn [req]
-                                 {:status 200 :body (repo/list-movies db)})}
+                      :handler (fn [{identity :identity}]
+                                 {:status 200
+                                  :body (if identity
+                                          (repo/list-account-movies db (:email identity))
+                                          (repo/list-movies db))})}
 
-                :post {:middleware [auth-required]
+                :post {:middleware []
                        :parameters {:body any?}
                        :responses {200 {:body any?}}
                        :handler (fn [{{movies :body} :parameters}]
@@ -97,16 +111,17 @@
                              :parameters {:body any?
                                           :path {:uuid string?}}
                              :responses {200 {:body any?}}
-                             :handler (fn [{{model :body {uuid :uuid} :path :as params} :parameters}]
+                             :handler (fn [{{model :body {uuid :uuid} :path} :parameters
+                                            {email :email} :identity}]
                                         (let [{rating :rating} model]
-                                          (repo/rate-movie! db uuid rating)
+                                          (repo/rate-movie! db uuid email rating)
                                           {:status 200 :body {:rating rating}}))}}]
 
     ["/tmdb/search" {:get {:parameters {:query {:title string?}}}
-                    :responses {200 {:body any?}}
-                    :handler (fn [{{{:keys [title]} :query} :parameters}]
-                               (let [results (tmdb/search-movies tmdb title)]
-                                 {:status 200 :body results}))}]]
+                     :responses {200 {:body any?}}
+                     :handler (fn [{{{:keys [title]} :query} :parameters}]
+                                (let [results (tmdb/search-movies tmdb title)]
+                                  {:status 200 :body results}))}]]
 
    ["/*" (ring/create-resource-handler)]])
 

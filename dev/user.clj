@@ -60,10 +60,10 @@
 (def db (db/new-db (:db config)))
 (def tmdb (tmdb/client (:tmdb config)))
 
-(def cli-config (cli-config/config {:env "dev"}))
+(def cli-config (cli-config/config {:env "dev" :password "admin"}))
 (def deps (cli-config/deps cli-config))
 
-(def client (client/client cli-config))
+(def client (client/client (:client cli-config)))
 
 (def test-dir "movies")
 
@@ -77,13 +77,18 @@
   {:title "Mulan" :video-files ["Mulan.mp4"] :letter "M"})
 
 (defn sim-1 []
-  (storage/mock-dir! test-dir test-movies)
+  (storage/mock-dir! test-dir [(nth test-movies 3)])
   (db/reset db)
-  (core/sync-movies! deps))
+  (client/register client "admin" "admin!")
+  (client/register client "mike" "mike!")
+  (client/register client "abby" "abby!")
+  (core/sync-movies! deps)
+)
 
 (defn sim-2 []
   (storage/mock-movie! test-dir new-test-movie)
-  (core/sync-movies! deps))
+  (core/sync-movies! deps)
+  )
 
 (comment
 
