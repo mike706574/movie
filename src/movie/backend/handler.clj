@@ -112,8 +112,10 @@
 
     ["/movies/:uuid" {:get {:parameters {:path {:uuid string?}}
                             :responses {200 {:body any?}}
-                            :handler (fn [{{{uuid :uuid} :path} :parameters :as req}]
-                                       (if-let [movie (repo/get-movie db {:uuid uuid})]
+                            :handler (fn [{{{uuid :uuid} :path} :parameters identity :identity}]
+                                       (if-let [movie (if identity
+                                                        (repo/get-account-movie db (:email identity) {:uuid uuid})
+                                                        (repo/get-movie db {:uuid uuid}))]
                                          {:status 200 :body movie}
                                          {:status 404 :body {:uuid uuid}}))}
 

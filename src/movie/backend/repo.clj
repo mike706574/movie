@@ -90,6 +90,9 @@
 (defn list-account-movies [db email]
   (select-items db :account-movie {:keys {:account-id (get-account-id db email)}}))
 
+(defn get-account-movie [db email keys]
+  (first (select-items db :account-movie {:keys (assoc keys :account-id (get-account-id db email))})))
+
 (defn clear-movies! [db]
   (jdbc/execute! db ["DELETE FROM movie"]))
 

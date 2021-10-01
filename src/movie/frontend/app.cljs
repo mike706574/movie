@@ -475,7 +475,7 @@
 
 (defn movie-page
   []
-  (let [{:keys [average-rating title overview tmdb-poster-path tmdb-id imdb-id release-date runtime rating uuid id] :as movie} @(rf/subscribe [:movie])
+  (let [{:keys [average-rating title overview tmdb-poster-path tmdb-id imdb-id release-date runtime rating uuid movie-id] :as movie} @(rf/subscribe [:movie])
         account @(rf/subscribe [:account])]
     [:<>
      [:p "This is a movie."]
@@ -510,7 +510,7 @@
            [:td uuid]]
           [:tr
            [:th {:scope "row"} "ID"]
-           [:td id]]
+           [:td movie-id]]
           [:tr
            [:th {:scope "row"} "Links"]
            [:td
@@ -634,7 +634,7 @@
           [:a {:href (href :login)} "Login"]
           [:a.ms-2 {:href (href :register)} "Register"]])]]
      (cond
-       loading [:p "Loading"]
+       loading [:p "Loading..."]
        error [:<>
               [:p "An error occurred."]
               (if (string? error)
