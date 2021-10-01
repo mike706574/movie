@@ -123,7 +123,7 @@
 
   (def akira (:uuid (repo/get-movie db {:title "Akira"})))
 
-  (repo/get-movie db {:uuid "21f0ba2d-ad95-41e3-8156-8dbc04e0ee16"})
+  (repo/get-movie db {:uuid akira})
   (repo/get-movie-id db akira)
 
   (repo/rate-movie! db akira 3.5)
@@ -140,7 +140,7 @@
 (def prod-db
   (jdbc/get-datasource "TODO"))
 
-(def prod-cli-config (cli-config/config {:env "prod" :password "g3%KWjvQ3+9jh7syR?P5n^%g_u?6Pq&y+#KRf&!ucXC55T+!62kmpMLUhMPCYWAR"}))
+(def prod-cli-config (cli-config/config {:env "prod" :password "TODO"}))
 
 (def prod-deps (cli-config/deps prod-cli-config))
 
