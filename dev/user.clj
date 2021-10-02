@@ -89,8 +89,8 @@
 
 (defn sim-1 []
   (db/reset db)
-;;  (register-users)
-  (storage/mock-dir! test-dir [(nth test-movies 3)])
+  (register-users)
+  (storage/mock-dir! test-dir test-movies)
   (core/sync-movies! deps))
 
 (defn sim-2 []

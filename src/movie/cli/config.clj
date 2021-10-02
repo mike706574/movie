@@ -10,7 +10,7 @@
 
   ([{:keys [env password]}]
    {:path "movies"
-    :tmdb {:type "dummy"
+    :tmdb {:type "api"
            :url "https://api.themoviedb.org/3"
            :key "7197608cef1572f5f9e1c5b184854484"
            :retry-options {:initial-wait 0
