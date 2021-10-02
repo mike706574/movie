@@ -66,25 +66,27 @@
 
 (defn resolve-movie-info
   [tmdb title]
-  (let [movies (search-tmdb-movies tmdb title)
-        selected-movies (vec (take 5 movies))
-        title-width (apply max (map #(count (:tmdb-title %)) selected-movies))]
-    (when (seq movies)
-      (println title "-" (count movies) "results")
-      (doseq [[idx movie] (map-indexed vector selected-movies)]
-        (let [{:keys [release-date tmdb-title overview tmdb-popularity]} movie]
-          (println (inc idx) "|" (right-pad title-width tmdb-title) "|" release-date "|" tmdb-popularity "|" (ellipsis 50 overview))))
-      (let [num (loop []
-                  (print "Choose: ")
-                  (flush)
-                  (let [input (read-line)]
-                    (if (= input "q")
-                      (throw (ex-info "Quit" {}))
-                      (let [num (parse-num input)]
-                        (if (< 0 num (inc (count selected-movies)))
-                          num
-                          (recur))))))]
-        (get selected-movies (dec num))))))
+  (let [movies (search-tmdb-movies tmdb title)]
+    (if (empty? movies)
+      {}
+      (let [selected-movies (vec (take 5 movies))
+            title-width (apply max (map #(count (:tmdb-title %)) selected-movies))]
+        (when (seq movies)
+          (println title "-" (count movies) "results")
+          (doseq [[idx movie] (map-indexed vector selected-movies)]
+            (let [{:keys [release-date tmdb-title overview tmdb-popularity]} movie]
+              (println (inc idx) "|" (right-pad title-width tmdb-title) "|" release-date "|" tmdb-popularity "|" (ellipsis 50 overview))))
+          (let [num (loop []
+                      (print "Choose: ")
+                      (flush)
+                      (let [input (read-line)]
+                        (if (= input "q")
+                          (throw (ex-info "Quit" {}))
+                          (let [num (parse-num input)]
+                            (if (< 0 num (inc (count selected-movies)))
+                              num
+                              (recur))))))]
+            (get selected-movies (dec num))))))))
 
 (defn sync-movies!
   [{:keys [path client tmdb]}]

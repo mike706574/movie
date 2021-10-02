@@ -82,14 +82,16 @@
 (def new-test-movie
   {:title "Mulan" :video-files ["Mulan.mp4"] :letter "M"})
 
-(defn sim-1 []
-  (storage/mock-dir! test-dir [(nth test-movies 3)])
-  (db/reset db)
-  (client/register client "admin" "admin!")
+(defn register-users []
   (client/register client "mike" "mike!")
-  (client/register client "abby" "abby!")
-  (core/sync-movies! deps)
-)
+  (client/register client "abby" "abby!"))
+
+
+(defn sim-1 []
+  (db/reset db)
+;;  (register-users)
+  (storage/mock-dir! test-dir [(nth test-movies 3)])
+  (core/sync-movies! deps))
 
 (defn sim-2 []
   (storage/mock-movie! test-dir new-test-movie)

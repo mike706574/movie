@@ -7,35 +7,17 @@
 (defn- dashed [x] (keyword (str/replace (name x) #"_" "-")))
 (defn- underscored [x] (keyword (str/replace (name x) #"-" "_")))
 
-(defn- get-id-column [table] (keyword (str (name (underscored table)) "_id")))
-
-(defn- adjust-key [table key]
-  (let [id-column (get-id-column table)]
-    (if (= key id-column)
-      id-column
-      (underscored key))))
-
-(defn- adjust-keys [table keys]
-  (-> keys
-      (set/rename-keys {:id (get-id-column table)})
-      (update-keys underscored)))
+(defn- adjust-keys [keys]
+  (update-keys keys underscored))
 
 (defn select-items
   ([db table]
    (select-items db table {}))
-  ([db table {:keys [keys mappings relation]}]
-   (let [id-column (get-id-column table)
-         defaulted-mappings (or mappings {id-column :id})
-         mapper #(-> %
-                     (set/rename-keys defaulted-mappings)
-                     (update-keys dashed))
-         relation (underscored
-                   (if relation
-                     relation
-                     (str (name table) "_view")))
+  ([db table {:keys [keys mappings]}]
+   (let [mapper #(update-keys % dashed)
          rows (if keys
-                (sql/find-by-keys db relation (adjust-keys table keys))
-                (let [sql (str "SELECT * FROM " (name relation))]
+                (sql/find-by-keys db (underscored table) (adjust-keys keys))
+                (let [sql (str "SELECT * FROM " (name (underscored table)))]
                   (sql/query db [sql])))]
      (map mapper rows))))
 
@@ -49,11 +31,11 @@
 
 (defn update-items! [db table primary-key keys items]
   (let [sets (->> keys
-                  (map (partial adjust-key table))
+                  (map underscored)
                   (map name)
                   (map #(str % " = ?"))
                   (str/join ", "))
-        primary-key-col (name (adjust-key table primary-key))
+        primary-key-col (name (underscored primary-key))
         sql (str "UPDATE " (name (underscored table)) " SET " sets " WHERE " primary-key-col " = ?")
         bindings (mapv
                   (fn [item]
@@ -64,34 +46,34 @@
     (jdbc/execute-batch! db sql bindings {})))
 
 (defn get-movie [db keys]
-  (first (select-items db :movie {:keys keys})))
+  (first (select-items db :movie-view {:keys keys})))
 
 (defn get-account [db keys]
-  (first (select-items db :account {:keys keys :relation :account})))
+  (first (select-items db :account {:keys keys})))
 
 (defn get-movie-id [db uuid]
-  (:id (get-movie db {:uuid uuid})))
+  (:movie-id (get-movie db {:uuid uuid})))
 
 (defn get-account-id [db email]
-  (:id (get-account db {:email email})))
+  (:account-id (get-account db {:email email})))
 
 (defn list-accounts [db]
-  (select-items db :account))
+  (select-items db :account-view))
 
 (defn insert-account! [db account]
   (insert-item! db :account account))
 
 (defn deactivate-item! [db table keys]
-  (sql/update! db (underscored table) {:active false} (adjust-keys table keys)))
+  (sql/update! db (underscored table) {:active false} (adjust-keys keys)))
 
 (defn list-movies [db]
-  (select-items db :movie))
+  (select-items db :movie-view))
 
 (defn list-account-movies [db email]
-  (select-items db :account-movie {:keys {:account-id (get-account-id db email)}}))
+  (select-items db :account-movie-view {:keys {:account-id (get-account-id db email)}}))
 
 (defn get-account-movie [db email keys]
-  (first (select-items db :account-movie {:keys (assoc keys :account-id (get-account-id db email))})))
+  (first (select-items db :account-movie-view {:keys (assoc keys :account-id (get-account-id db email))})))
 
 (defn clear-movies! [db]
   (jdbc/execute! db ["DELETE FROM movie"]))

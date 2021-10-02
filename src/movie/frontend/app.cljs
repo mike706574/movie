@@ -22,6 +22,7 @@
   [string sub]
   (not (nil? (.match string (re-pattern (str "(?i)" sub))))))
 
+;; CSS
 (defn classes [entries]
   (->> entries
        (filter (fn [entry]
@@ -33,6 +34,7 @@
                 entry
                 (first entry))))))
 
+;; Routing
 (defn href
   ([k]
    (href k nil nil))
@@ -41,13 +43,48 @@
   ([k params query]
    (rfez/href k params query)))
 
-(defn auth-headers [account]
-  (if account
-    {"Authorization" (str "Token " (:token account))}
-    {}))
+;; Local Storage
+(defn set-item [key val]
+  (.setItem (.-localStorage js/window) (name key) (pr-str val)))
+
+(defn remove-item [key]
+  (.removeItem (.-localStorage js/window) (name key)))
+
+(defn get-item [key]
+  (edn/read-string (.getItem (.-localStorage js/window) (name key))))
+
+;; Requests
+(defn get-account []
+  (get-item :account))
+
+(defn get-token []
+  (:token (get-account)))
+
+(defn auth-headers
+  ([]
+   (auth-headers (get-account)))
+  ([account]
+   (if account
+     {"Authorization" (str "Token " (:token account))}
+     {})))
 
 (def json-req-format (ajax/json-request-format {:keywords? true}))
 (def json-resp-format (ajax/json-response-format {:keywords? true}))
+
+(defn get-json-request [options]
+  (merge {:method :get
+          :response-format json-resp-format
+          :on-failure [:handle-failure]}
+         options
+         {:headers (merge (:headers options) (auth-headers))}))
+
+(defn post-json-request [options]
+  (merge {:method :post
+          :format json-req-format
+          :response-format json-resp-format
+          :on-failure [:handle-failure]}
+         options
+         {:headers (merge (:headers options) (auth-headers))}))
 
 ;; -- Event Handlers --
 
@@ -79,13 +116,10 @@
 
 ;; Login
 (defn login-request [params]
-  {:method :post
-   :uri "/login"
-   :format json-req-format
-   :response-format json-resp-format
-   :params params
-   :on-success [:process-login]
-   :on-failure [:handle-login-failure]})
+  (post-json-request {:uri "/api/tokens"
+                      :params params
+                      :on-success [:process-login]
+                      :on-failure [:handle-login-failure]}))
 
 (rf/reg-event-fx
  :login
@@ -102,19 +136,17 @@
 
 (rf/reg-event-db
  :handle-login-failure
- (fn [db [_ {:keys [status response]}]]
+ (fn [db [_ {:keys [status response] :as result}]]
    (if (= status 401)
-     (assoc db :login-error (:error response)))))
+     (assoc db :login-error (:error response))
+     (assoc db :error result))))
 
 ;; Register
 (defn register-request [params]
-  {:method :post
-   :uri "/register"
-   :format json-req-format
-   :response-format json-resp-format
-   :params params
-   :on-success [:process-register]
-   :on-failure [:handle-failure]})
+  (post-json-request {:uri "/api/accounts"
+                      :params params
+                      :on-success [:process-register]
+                      :on-failure [:handle-register-failure]}))
 
 (rf/reg-event-fx
  :register
@@ -126,6 +158,13 @@
  (fn [{db :db} [_ response]]
    {:push-route [:login]}))
 
+(rf/reg-event-db
+ :handle-register-failure
+ (fn [db [_ {:keys [status response] :as result}]]
+   (if (= status 400)
+     (assoc db :register-error (:error response))
+     (assoc db :error result))))
+
 ;; Logout
 (rf/reg-event-fx
  :logout
@@ -134,19 +173,17 @@
     :local-storage [[:remove :account]]}))
 
 ;; Fetching movies
-(defn movies-request [account]
-  {:method :get
-   :uri "/api/movies"
-   :headers (auth-headers account)
-   :response-format json-resp-format
-   :on-success [:process-movies]
-   :on-failure [:handle-failure]})
+(defn movies-request []
+  (get-json-request {:uri "/api/movies"
+                     :response-format json-resp-format
+                     :on-success [:process-movies]
+                     :on-failure [:handle-failure]}))
 
 (rf/reg-event-fx
  :fetch-movies
  (fn [{db :db} _]
    {:db (assoc db :loading true)
-    :http-xhrio (movies-request (:account db))}))
+    :http-xhrio (movies-request)}))
 
 (rf/reg-event-db
  :process-movies
@@ -158,45 +195,39 @@
                :movies (js->clj response)}))))
 
 ;; Fetching a movie
-(defn movie-request [account uuid]
-  {:method :get
-   :uri (str "/api/movies/" uuid)
-   :headers (auth-headers account)
-   :response-format json-resp-format
-   :on-success [:process-movie]
-   :on-failure [:handle-failure]})
+(defn movie-request [uuid]
+  (get-json-request {:method :get
+                     :uri (str "/api/movies/" uuid)
+                     :on-success [:process-movie]}))
 
 (rf/reg-event-fx
  :fetch-movie
  (fn [{db :db} [_ uuid]]
-   {:http-xhrio (movie-request (:account db) uuid)
+   {:http-xhrio (movie-request uuid)
     :db (assoc db :loading true)}))
 
 (rf/reg-event-fx
  :refresh-movie
  (fn [{db :db} [_ uuid]]
-   {:http-xhrio (movie-request (:account db) uuid)}))
+   {:http-xhrio (movie-request uuid)}))
 
 (rf/reg-event-db
  :process-movie
  (fn [db [_ response]]
    (assoc db :loading false :movie (js->clj response))))
 
+;; Getting accounts
+
 ;; Rating a movie
-(defn rate-movie-request [account uuid rating]
-  {:method :post
-   :params {:rating rating}
-   :uri (str "/api/movies/" uuid)
-   :headers (auth-headers account)
-   :format json-req-format
-   :response-format json-resp-format
-   :on-success [:refresh-movie uuid]
-   :on-failure [:handle-failure]})
+(defn rate-movie-request [uuid rating]
+  (post-json-request {:uri (str "/api/movies/" uuid)
+                      :params {:rating rating}
+                      :on-success [:refresh-movie uuid]}))
 
 (rf/reg-event-fx
  :rate-movie
  (fn [{db :db} [_ uuid rating]]
-   {:http-xhrio (rate-movie-request (:account db) uuid rating)}))
+   {:http-xhrio (rate-movie-request uuid rating)}))
 
 ;; Movie pagination
 (rf/reg-event-db
@@ -263,15 +294,6 @@
   (fn [route]
     (apply rfez/push-state route)))
 
-(defn set-item [key val]
-  (.setItem (.-localStorage js/window) (name key) (pr-str val)))
-
-(defn remove-item [key]
-  (.removeItem (.-localStorage js/window) (name key)))
-
-(defn get-item [key]
-  (edn/read-string (.getItem (.-localStorage js/window) (name key))))
-
 (rf/reg-fx
  :local-storage
  (fn [changes]
@@ -297,6 +319,11 @@
   :login-error
   (fn [db _]
     (:login-error db)))
+
+(rf/reg-sub
+  :register-error
+  (fn [db _]
+    (:register-error db)))
 
 (rf/reg-sub
   :account
@@ -455,13 +482,23 @@
                      rating] :as movie} movies]
          [:div.col {:key uuid}
           [:div.card.mb-3
-           [:img.card-img-top
-            {:src (if tmdb-backdrop-path
-                    (str "http://image.tmdb.org/t/p/w300" tmdb-backdrop-path)
-                    "http://via.placeholder.com/300x169")
-             :style {"display" "block"
-                     "height" "auth"}
-             :alt title}]
+           [:a {:href (href :movie {:uuid uuid})
+                :style {"textDecoration" "none"
+                        "color" "#000"}}
+            (if tmdb-backdrop-path
+              [:img.card-img-top
+               {:src (str "http://image.tmdb.org/t/p/w300" tmdb-backdrop-path)
+                :style {"display" "block"
+                        "height" "auto"}
+                :alt title}]
+              [:div {:style {"backgroundColor" "#eee"
+                             "display" "flex"
+                             "height" "169px"
+                             "width" "100%"}}
+               [:h5 {:style {"alignSelf" "center"
+                             "textAlign" "center"
+                             "width" "100%"}}
+                title]])]
            [:div.card-body
             [:h5.card-title
              {:style {"display" "inline"}}
@@ -482,8 +519,17 @@
      [:h2 title]
      [:div.row
       [:div.col-md-4
-       [:img.img-fluid.mb-3
-        {:src (str "http://image.tmdb.org/t/p/w780" tmdb-poster-path)}]]
+       (if tmdb-poster-path
+         [:img.img-fluid.mb-3
+          {:src (str "http://image.tmdb.org/t/p/w780" tmdb-poster-path)}]
+         [:div {:style {"backgroundColor" "#eee"
+                        "display" "flex"
+                        "height" "460px"
+                        "width" "100%"}}
+          [:h5 {:style {"alignSelf" "center"
+                        "textAlign" "center"
+                        "width" "100%"}}
+           title]])]
       [:div.col-md-8
        [:section
         [:h6 "Overview"]
@@ -498,13 +544,13 @@
          [:tbody
           [:tr
            [:th {:scope "row"} "Released"]
-           [:td release-date]]
+           [:td (or release-date "Unknown")]]
           [:tr
            [:th {:scope "row"} "Runtime"]
-           [:td runtime]]
+           [:td (or runtime "Unknown")]]
           [:tr
            [:th {:scope "row"} "Average Rating"]
-           [:td average-rating]]
+           [:td (or average-rating "Not rated")]]
           [:tr
            [:th {:scope "row"} "UUID"]
            [:td uuid]]
@@ -514,19 +560,24 @@
           [:tr
            [:th {:scope "row"} "Links"]
            [:td
-            [:a {:href (str "https://www.themoviedb.org/movie/" tmdb-id)
-                 :style {"marginRight" "0.5em"}}
-             "TMDB"]
-            [:a {:href (str "https://www.imdb.org/title/" imdb-id)}
-             "IMDB"]]]]]]]]]))
+            (when tmdb-id
+              [:a {:href (str "https://www.themoviedb.org/movie/" tmdb-id)
+                   :style {"marginRight" "0.5em"}}
+               "TMDB"])
+            (when imdb-id
+              [:a {:href (str "https://www.imdb.org/title/" imdb-id)}
+               "IMDB"])]]]]]]]]))
 
 (defn register-page []
   (let [email-atom (r/atom "")
         password-atom (r/atom "")]
     (fn []
-      (let [email @email-atom
+      (let [error @(rf/subscribe [:register-error])
+            email @email-atom
             password @password-atom
-            params {:email email :password password}]
+            params {:email email :password password}
+            email-taken? (= error "email-taken")
+            disabled? (or (str/blank? email) (str/blank? password))]
         [:<>
          [:p "You're trying to register."]
          [:h2 "Register"]
@@ -540,7 +591,9 @@
              :type "email"
              :name "email"
              :value email
-             :on-change #(reset! email-atom (-> % .-target .-value))}]]]
+             :class (classes [["is-invalid" email-taken?]])
+             :on-change #(reset! email-atom (-> % .-target .-value))}]
+           (when email-taken? [:div.invalid-feedback "An account with this email already exists."])]]
          [:div.row.mb-3
           [:label.col-sm-2.col-form-label
            {:for "password"}
@@ -548,12 +601,14 @@
           [:div.col-sm-4
            [:input.form-control
             {:id "password"
-             :type "password"
+             :type "text"
              :name "password"
              :value password
+             :style {"WebkitTextSecurity" "disc"}
              :on-change #(reset! password-atom (-> % .-target .-value))}]]]
          [:button.btn.btn-primary
           {:type "submit"
+           :disabled disabled?
            :on-click #(rf/dispatch [:register params])}
           "Submit"]]))))
 
@@ -566,7 +621,8 @@
             password @password-atom
             params {:email email :password password}
             missing-account? (= error "missing-account")
-            invalid-password? (= error "invalid-password")]
+            invalid-password? (= error "invalid-password")
+            disabled? (or (str/blank? email) (str/blank? password))]
         [:<>
          [:p "You're trying to log in."]
          [:h2 "Login"]
@@ -598,6 +654,7 @@
            (when invalid-password? [:div.invalid-feedback "Invalid password."])]]
          [:button.btn.btn-primary
           {:type "submit"
+           :disabled disabled?
            :on-click #(rf/dispatch [:login params])}
           "Submit"]]))))
 

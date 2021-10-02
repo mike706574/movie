@@ -16,7 +16,7 @@
 
 (defn- get-auth-headers [{:keys [url email password]}]
   (if email
-    (let [token (:token (post-request {:url (str url "/login")
+    (let [token (:token (post-request {:url (str url "/api/tokens")
                                        :body {:email email :password password}}))]
       {"Authorization" (str "Token " token)})
     {}))
@@ -29,7 +29,7 @@
 (defrecord ApiSystemClient [url email password]
   SystemClient
   (register [this new-email new-password]
-    (post-request {:url (str url "/register")
+    (post-request {:url (str url "/api/accounts")
                    :body {:email new-email :password new-password}}))
 
   (list-movies [_]

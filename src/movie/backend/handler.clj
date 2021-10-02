@@ -8,6 +8,7 @@
             [clojure.string :as str]
             [com.stuartsierra.component :as component]
             [movie.backend.repo :as repo]
+            [movie.common.json :as json]
             [movie.common.tmdb :as tmdb]
             [muuntaja.core :as m]
             [reitit.ring :as ring]
@@ -25,10 +26,7 @@
 (def unsign #(auth-jwt/unsign % secret {:alg alg}))
 
 (def token-backend
-  (auth-backends/jws {:secret secret
-                      :options {:alg alg}
-                      :on-error (fn [req e]
-                                  (.printStackTrace e))}))
+  (auth-backends/jws {:secret secret :options {:alg alg}}))
 
 (defn auth [handler]
   (auth-middleware/wrap-authentication handler token-backend))
@@ -58,7 +56,9 @@
             response)
           (catch Exception e
             (log/error e label)
-            {:status 500}))))))
+            {:status 500
+             :headers {"Content-Type" "application/json"}
+             :body (json/write-value-as-string {:error (ex-message e)})}))))))
 
 (defn check-account [db admin-password email password]
   (if-let [account (if (= email "admin")
@@ -75,25 +75,32 @@
                :responses  {200 {:body any?}}
                :handler (fn [_] (resp/resource-response "public/index.html"))}}]
 
-   ["/login" {:post {:parameters {:body {:email string? :password string?}}
-                     :responses {200 {:body any?}}
-                     :handler (fn [{{{:keys [email password]} :body :as params} :parameters :as req}]
-
-                                (let [{:keys [error account]} (check-account db admin-password email password)]
-                                  (if error
-                                    {:status 401 :body {:error error}}
-                                    (let [token (sign account)]
-                                      {:status 200 :body (assoc account :token token)}))))}}]
-
-   ["/register" {:post {:parameters {:body {:email string? :password string?}}
-                        :responses {200 {:body any?}}
-                        :handler (fn [{{{:keys [email password]} :body :as params} :parameters :as req}]
-                                   (let [hashed-password (auth-hashers/derive password)
-                                         template {:email email :password hashed-password}]
-                                     (repo/insert-account! db template)
-                                     {:status 200 :body {:email email}}))}}]
-
    ["/api" {:middleware [auth]}
+    ["/accounts" {:get {:parameters {}
+                        :responses {200 {:body any?}}
+                        :handler (fn []
+                                   {:status 200
+                                    :body (repo/list-accounts db)})}
+
+                  :post {:parameters {:body {:email string? :password string?}}
+                         :responses {200 {:body any?}}
+                         :handler (fn [{{{:keys [email password]} :body :as params} :parameters :as req}]
+                                    (if-let [account (repo/get-account db {:email email})]
+                                      {:status 400 :body {:error "email-taken"}}
+                                      (let [hashed-password (auth-hashers/derive password)
+                                            template {:email email :password hashed-password}]
+                                        (repo/insert-account! db template)
+                                        {:status 200 :body {:email email}})))}}]
+
+    ["/tokens" {:post {:parameters {:body {:email string? :password string?}}
+                       :responses {200 {:body any?}}
+                       :handler (fn [{{{:keys [email password]} :body :as params} :parameters :as req}]
+                                  (let [{:keys [error account]} (check-account db admin-password email password)]
+                                    (if error
+                                      {:status 401 :body {:error error}}
+                                      (let [token (sign account)]
+                                        {:status 200 :body (assoc account :token token)}))))}}]
+
     ["/movies" {:get {:parameters {}
                       :responses {200 {:body any?}}
                       :handler (fn [{identity :identity}]
