@@ -13,9 +13,12 @@
             [muuntaja.core :as m]
             [reitit.ring :as ring]
             [reitit.coercion.spec]
-            [reitit.ring.coercion :as rrc]
+            [reitit.ring.coercion :as coercion]
             [reitit.ring.middleware.muuntaja :as muuntaja]
+            [reitit.ring.middleware.exception :as exception]
             [reitit.ring.middleware.parameters :as parameters]
+            [reitit.swagger :as swagger]
+            [reitit.swagger-ui :as swagger-ui]
             [ring.util.response :as resp]
             [taoensso.timbre :as log]))
 
@@ -142,7 +145,7 @@
                                 (let [results (tmdb/search-movies tmdb title)]
                                   {:status 200 :body results}))}]]
 
-   ["/*" (ring/create-resource-handler)]])
+])
 
 (defn router [deps]
   (ring/router
@@ -151,20 +154,24 @@
            :muuntaja m/instance
            :middleware [muuntaja/format-middleware
                         parameters/parameters-middleware
-                        rrc/coerce-request-middleware
-                        rrc/coerce-response-middleware]}
+                        coercion/coerce-request-middleware
+                        coercion/coerce-response-middleware]}
     :conflicts (constantly nil)}))
 
 (defn handler [deps]
   (ring/ring-handler
    (router deps)
-   (ring/create-default-handler)
+   (ring/routes
+    (swagger-ui/create-swagger-ui-handler
+     {:config {:validatorUrl nil
+               :operationsSorter "alpha"}})
+    (ring/create-default-handler))
    {:middleware [wrap-logging]}))
 
 (defprotocol IHandlerFactory
   (build [hf]))
 
-(defrecord HandlerFactory [admin-password db movies tmdb]
+(defrecord HandlerFactory [admin-password db tmdb]
   IHandlerFactory
   (build [this]
     (handler this))

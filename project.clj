@@ -7,7 +7,7 @@
                  [buddy/buddy-auth "3.0.1"]
                  [buddy/buddy-hashers "1.8.1"]
                  [clj-http "3.12.3"]
-                 [com.github.seancorfield/next.jdbc "1.2.674"]
+                 [com.github.seancorfield/next.jdbc "1.2.731"]
                  [com.stuartsierra/component "1.0.0"]
                  [com.taoensso/timbre "5.1.2"]
                  [metosin/jsonista "0.3.4"]

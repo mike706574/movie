@@ -80,25 +80,27 @@
                       (print "Choose: ")
                       (flush)
                       (let [input (read-line)]
-                        (if (= input "q")
-                          (throw (ex-info "Quit" {}))
+                        (case input
+                          "q" (throw (ex-info "Quit" {}))
+                          "s" nil
                           (let [num (parse-num input)]
                             (if (< 0 num (inc (count selected-movies)))
                               num
                               (recur))))))]
-            (get selected-movies (dec num))))))))
+            (when num
+              (get selected-movies (dec num)))))))))
 
 (defn sync-movies!
   [{:keys [path client tmdb]}]
   (let [raw-movies (storage/read-movies-dir path)
         movies (map
                 (fn [movie]
-                  (let [{:keys [title uuid path]} movie]
-                    (if uuid
+                  (let [{:keys [path title tmdb-id uuid]} movie]
+                    (if tmdb-id
                       movie
-                      (let [new-uuid (rand-uuid)
+                      (let [uuid (if uuid uuid (rand-uuid))
                             info (resolve-movie-info tmdb title)
-                            metadata (assoc info :uuid new-uuid)]
+                            metadata (assoc info :uuid uuid)]
                         (log/info "Populating metadata" metadata)
                         (storage/write-metadata! path metadata)
                         (merge movie metadata)))))

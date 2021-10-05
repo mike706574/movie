@@ -5,6 +5,7 @@
             [clojure.tools.namespace.repl :as repl]
             [com.stuartsierra.component :as component]
             [movie.common.client :as client]
+            [movie.common.config :as config]
             [movie.common.storage :as storage]
             [movie.common.tmdb :as tmdb]
             [movie.backend.db :as db]
@@ -98,6 +99,9 @@
   (core/sync-movies! deps)
   )
 
+(defn sim-3 []
+  (core/sync-movies! deps))
+
 (comment
 
   ;; tmdb
@@ -140,9 +144,9 @@
 )
 
 (def prod-db
-  (jdbc/get-datasource "TODO"))
+  (jdbc/get-datasource (config/get-env-var "JDBC_DATABASE_URL")))
 
-(def prod-cli-config (cli-config/config {:env "prod" :password "TODO"}))
+(def prod-cli-config (cli-config/config {:env "prod" :password (config/get-env-var "ADMIN_PASSWORD")}))
 
 (def prod-deps (cli-config/deps prod-cli-config))
 
