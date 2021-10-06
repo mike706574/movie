@@ -1,14 +1,8 @@
 (ns movie.backend.handler
-  (:require [buddy.auth :as auth]
-            [buddy.auth.backends :as auth-backends]
-            [buddy.auth.middleware :as auth-middleware]
-            [buddy.hashers :as auth-hashers]
-            [buddy.sign.jwt :as auth-jwt]
-            [clojure.edn :as edn]
-            [clojure.string :as str]
-            [com.stuartsierra.component :as component]
+  (:require [com.stuartsierra.component :as component]
+            [movie.backend.auth :as auth]
+            [movie.backend.middleware :as mw]
             [movie.backend.repo :as repo]
-            [movie.common.json :as json]
             [movie.common.tmdb :as tmdb]
             [muuntaja.core :as m]
             [reitit.ring :as ring]
@@ -22,63 +16,18 @@
             [ring.util.response :as resp]
             [taoensso.timbre :as log]))
 
-(def secret "secret")
-
-(def alg :hs512)
-(def sign #(auth-jwt/sign % secret {:alg alg}))
-(def unsign #(auth-jwt/unsign % secret {:alg alg}))
-
-(def token-backend
-  (auth-backends/jws {:secret secret :options {:alg alg}}))
-
-(defn auth [handler]
-  (auth-middleware/wrap-authentication handler token-backend))
-
-(defn auth-required [handler]
-  (fn [req]
-    (if (auth/authenticated? req)
-      (handler req)
-      {:status 401 :body {:error "Not authorized"}})))
-
-(defn admin-required [handler]
-  (fn [req]
-    (if (= (get-in req [:identity :email]) "admin")
-      (handler req)
-      {:status 403 :body {:error "Must be an admin"}})))
-
-(defn wrap-logging
-  [handler]
-  (fn [{:keys [uri method] :as request}]
-    (if (str/starts-with? uri "/js/")
-      (handler request)
-      (let [label (str method " \"" uri "\"")]
-        (try
-          (log/info label)
-          (let [{:keys [status] :as response} (handler request)]
-            (log/info (str label " -> " status))
-            response)
-          (catch Exception e
-            (log/error e label)
-            {:status 500
-             :headers {"Content-Type" "application/json"}
-             :body (json/write-value-as-string {:error (ex-message e)})}))))))
-
-(defn check-account [db admin-password email password]
-  (if-let [account (if (= email "admin")
-                     {:email "admin" :password admin-password}
-                     (repo/get-account db {:email email}))]
-    (if (:valid (auth-hashers/verify password (:password account)))
-      {:account (dissoc account :password)}
-      {:error "invalid-password"})
-    {:error "missing-account"}))
-
 (defn routes
   [{:keys [admin-password db tmdb]}]
-  [["/" {:get {:parameters {}
+  [["/" {:get {:no-doc true
+               :parameters {}
                :responses  {200 {:body any?}}
                :handler (fn [_] (resp/resource-response "public/index.html"))}}]
 
-   ["/api" {:middleware [auth]}
+   ["/swagger.json" {:get {:no-doc true
+                           :swagger {:info {:title "movie api"}}
+                           :handler (swagger/create-swagger-handler)}}]
+
+   ["/api" {:middleware [mw/auth]}
     ["/accounts" {:get {:parameters {}
                         :responses {200 {:body any?}}
                         :handler (fn []
@@ -88,21 +37,18 @@
                   :post {:parameters {:body {:email string? :password string?}}
                          :responses {200 {:body any?}}
                          :handler (fn [{{{:keys [email password]} :body :as params} :parameters :as req}]
-                                    (if-let [account (repo/get-account db {:email email})]
-                                      {:status 400 :body {:error "email-taken"}}
-                                      (let [hashed-password (auth-hashers/derive password)
-                                            template {:email email :password hashed-password}]
-                                        (repo/insert-account! db template)
-                                        {:status 200 :body {:email email}})))}}]
+                                    (let [{:keys [status]} (auth/register-account db email password)]
+                                      (case status
+                                        "registered" {:status 200 :body {:email email}}
+                                        "email-taken" {:status 400 :body {:error "email-taken"}})))}}]
 
     ["/tokens" {:post {:parameters {:body {:email string? :password string?}}
                        :responses {200 {:body any?}}
                        :handler (fn [{{{:keys [email password]} :body :as params} :parameters :as req}]
-                                  (let [{:keys [error account]} (check-account db admin-password email password)]
-                                    (if error
-                                      {:status 401 :body {:error error}}
-                                      (let [token (sign account)]
-                                        {:status 200 :body (assoc account :token token)}))))}}]
+                                  (let [{:keys [status account token]} (auth/generate-token db admin-password email password)]
+                                    (if (= status "generated")
+                                      {:status 200 :body {:account account :token token}}
+                                      {:status 401 :body {:error status}})))}}]
 
     ["/movies" {:get {:parameters {}
                       :responses {200 {:body any?}}
@@ -112,7 +58,7 @@
                                           (repo/list-account-movies db (:email identity))
                                           (repo/list-movies db))})}
 
-                :post {:middleware [auth-required admin-required]
+                :post {:middleware [mw/auth-required mw/admin-required]
                        :parameters {:body any?}
                        :responses {200 {:body any?}}
                        :handler (fn [{{movies :body} :parameters identity :identity}]
@@ -129,7 +75,7 @@
                                          {:status 200 :body movie}
                                          {:status 404 :body {:uuid uuid}}))}
 
-                      :post {:middleware [auth-required]
+                      :post {:middleware [mw/auth-required]
                              :parameters {:body any?
                                           :path {:uuid string?}}
                              :responses {200 {:body any?}}
@@ -139,13 +85,11 @@
                                           (repo/rate-movie! db uuid email rating)
                                           {:status 200 :body {:rating rating}}))}}]
 
-    ["/tmdb/search" {:get {:parameters {:query {:title string?}}}
-                     :responses {200 {:body any?}}
-                     :handler (fn [{{{:keys [title]} :query} :parameters}]
-                                (let [results (tmdb/search-movies tmdb title)]
-                                  {:status 200 :body results}))}]]
-
-])
+    ["/tmdb/search" {:get {:parameters {:query {:title string?}}
+                           :responses {200 {:body any?}}
+                           :handler (fn [{{{:keys [title]} :query} :parameters}]
+                                      (let [results (tmdb/search-movies tmdb title)]
+                                        {:status 200 :body results}))}}]]])
 
 (defn router [deps]
   (ring/router
@@ -155,26 +99,26 @@
            :middleware [muuntaja/format-middleware
                         parameters/parameters-middleware
                         coercion/coerce-request-middleware
-                        coercion/coerce-response-middleware]}
-    :conflicts (constantly nil)}))
+                        coercion/coerce-response-middleware]}}))
 
 (defn handler [deps]
   (ring/ring-handler
    (router deps)
    (ring/routes
     (swagger-ui/create-swagger-ui-handler
-     {:config {:validatorUrl nil
+     {:path "/swagger-ui"
+      :config {:validatorUrl nil
                :operationsSorter "alpha"}})
+    (ring/create-resource-handler {:path "/"})
     (ring/create-default-handler))
-   {:middleware [wrap-logging]}))
+   {:middleware [mw/logging]}))
 
 (defprotocol IHandlerFactory
   (build [hf]))
 
 (defrecord HandlerFactory [admin-password db tmdb]
   IHandlerFactory
-  (build [this]
-    (handler this))
+  (build [this] (handler this))
   component/Lifecycle
   (start [this] this)
   (stop [this] this))
