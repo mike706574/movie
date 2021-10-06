@@ -7,11 +7,8 @@
             [reitit.coercion.malli]
             [reitit.ring.coercion :as coercion]
             [reitit.ring.middleware.muuntaja :as muuntaja]
-            [reitit.ring.middleware.exception :as exception]
             [reitit.ring.middleware.parameters :as parameters]
-            [reitit.swagger :as swagger]
-            [reitit.swagger-ui :as swagger-ui]
-            [taoensso.timbre :as log]))
+            [reitit.swagger-ui :as swagger-ui]))
 
 (defn router [deps]
   (ring/router

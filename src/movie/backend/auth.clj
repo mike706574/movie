@@ -21,7 +21,7 @@
     {:status "missing-account"}))
 
 (defn- register-account* [{:keys [db]} email password]
-  (if-let [account (repo/get-account db {:email email})]
+  (if (repo/get-account db {:email email})
     {:status "email-taken"}
     (let [hashed-password (auth-hashers/derive password)
           template {:email email :password hashed-password}]
@@ -37,7 +37,7 @@
 
 (defrecord AuthSystem [db admin-password secret]
   IAuthSystem
-  (middleware [this]
+  (middleware [_]
     (let [token-backend (auth-backends/jws {:secret secret :options {:alg alg}})]
       (fn [handler] (auth-middleware/wrap-authentication handler token-backend))))
   (generate-token [this email password]

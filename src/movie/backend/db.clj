@@ -1,11 +1,9 @@
 (ns movie.backend.db
-  (:require [clojure.set :as set]
-            [clojure.string :as str]
+  (:require [clojure.string :as str]
             [migratus.core :as migratus]
             [next.jdbc :as jdbc]
             [next.jdbc.result-set :as rs]
-            [next.jdbc.sql :as sql]
-            [next.jdbc.sql.builder :as builder]))
+            [next.jdbc.sql :as sql]))
 
 (defn- index-by
   "Returns a map in which values are items of coll and keys are the result of applying f to each item."
@@ -163,6 +161,12 @@ WHERE tc.constraint_type = 'PRIMARY KEY' AND kcu.table_schema !~ '^pg_' AND kcu.
          rows (let [key-map (if keys (adjust-keys keys) :all)]
                 (sql/find-by-keys db (underscored table) key-map {:cols (map underscored cols)}))]
      (map mapper rows))))
+
+(defn select-first-item
+  ([db table]
+   (select-first-item db table {}))
+  ([db table opts]
+   (first (select-items db table opts))))
 
 (defn insert-items! [db table cols items]
   (let [rows (map (fn [item] (map #(get item %) cols)) items)

@@ -1,7 +1,5 @@
 (ns movie.backend.routes
-  (:require [malli.core :as m]
-            [malli.util :as mu]
-            [movie.backend.auth :as auth]
+  (:require [movie.backend.auth :as auth]
             [movie.backend.middleware :as mw]
             [movie.backend.repo :as repo]
             [movie.backend.schema :as s]
@@ -11,12 +9,12 @@
             [taoensso.timbre :as log]))
 
 (def email-and-password-params
-  [:map
+  [:map {:closed true}
    [:email string?]
    [:password string?]])
 
 (def uuid-params
-  [:map
+  [:map {:closed true}
    [:uuid string?]])
 
 (defn routes
@@ -28,17 +26,17 @@
                            :swagger {:info {:title "movie api"}}
                            :handler (swagger/create-swagger-handler)}}]
 
-   ["/api" {:middleware [(auth/middleware auth)]}
+   ["/api" {:middleware [(mw/auth auth)]}
     ["/accounts" {:get {:parameters {}
                         :responses {200 {:body [:sequential s/account-model]}}
-                        :handler (fn [req]
+                        :handler (fn [_]
                                    {:status 200
                                     :body (repo/list-accounts db)})}
 
                   :post {:parameters {:body email-and-password-params}
                          :responses {200 {:body [:map {:closed true}
                                                  [:email string?]]}}
-                         :handler (fn [{{{:keys [email password]} :body :as params} :parameters :as req}]
+                         :handler (fn [{{{:keys [email password]} :body} :parameters}]
                                     (let [{:keys [status]} (auth/register-account auth email password)]
                                       (case status
                                         "registered" {:status 200 :body {:email email}}
@@ -46,7 +44,7 @@
 
     ["/tokens" {:post {:parameters {:body email-and-password-params}
                        :responses {200 {:body any?}}
-                       :handler (fn [{{{:keys [email password]} :body :as params} :parameters :as req}]
+                       :handler (fn [{{{:keys [email password]} :body} :parameters}]
                                   (let [{:keys [status account token]} (auth/generate-token auth email password)]
                                     (if (= status "generated")
                                       {:status 200 :body (assoc account :token token)}
@@ -79,7 +77,7 @@
 
                       :post {:middleware [mw/auth-required]
                              :parameters {:body [:map {:closed true}
-                                                 [:maybe decimal?]]
+                                                 [:rating [:maybe float?]]]
                                           :path uuid-params}
                              :responses {200 {:body any?}}
                              :handler (fn [{{model :body {uuid :uuid} :path} :parameters

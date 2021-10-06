@@ -1,9 +1,10 @@
 (ns movie.backend.middleware
-  (:require [buddy.auth.middleware :as auth-middleware]
-            [clojure.string :as str]
+  (:require [clojure.string :as str]
             [movie.backend.auth :as auth]
             [movie.common.json :as json]
             [taoensso.timbre :as log]))
+
+(defn auth [auth] (auth/middleware auth))
 
 (defn auth-required [handler]
   (fn [req]

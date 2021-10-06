@@ -1,5 +1,4 @@
-(ns movie.frontend.util
-  (:require [clojure.string :as str]))
+(ns movie.frontend.util)
 
 (defn includes-ignore-case?
   [string sub]

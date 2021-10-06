@@ -40,7 +40,7 @@
 
 (rf/reg-event-fx
  :login
- (fn [{db :db} [_ params]]
+ (fn [_ [_ params]]
    {:http-xhrio (login-request params)}))
 
 (rf/reg-event-fx
@@ -67,12 +67,12 @@
 
 (rf/reg-event-fx
  :register
- (fn [{db :db} [_ params]]
+ (fn [_ [_ params]]
    {:http-xhrio (register-request params)}))
 
 (rf/reg-event-fx
  :process-register
- (fn [{db :db} [_ response]]
+ (fn [_ _]
    {:push-route [:login]}))
 
 (rf/reg-event-db
@@ -85,7 +85,7 @@
 ;; Logout
 (rf/reg-event-fx
  :logout
- (fn [{db :db} [_ params]]
+ (fn [{db :db} _]
    {:db (dissoc db :account)
     :storage [[:remove :account]]}))
 
@@ -124,7 +124,7 @@
 
 (rf/reg-event-fx
  :refresh-movie
- (fn [{db :db} [_ uuid]]
+ (fn [_ [_ uuid]]
    {:http-xhrio (movie-request uuid)}))
 
 (rf/reg-event-db
@@ -142,7 +142,7 @@
 
 (rf/reg-event-fx
  :rate-movie
- (fn [{db :db} [_ uuid rating]]
+ (fn [_ [_ uuid rating]]
    {:http-xhrio (rate-movie-request uuid rating)}))
 
 ;; Movie pagination
@@ -382,8 +382,7 @@
                      uuid
                      overview
                      tmdb-backdrop-path
-                     release-date
-                     rating] :as movie} movies]
+                     release-date] :as movie} movies]
          [:div.col {:key uuid}
           [:div.card.mb-3
            [:a {:href (routing/href :movie {:uuid uuid})
@@ -418,7 +417,7 @@
               [rating-form movie])]]])])))
 
 (defn movie-page []
-  (let [{:keys [average-rating title overview tmdb-poster-path tmdb-id imdb-id release-date runtime rating uuid movie-id] :as movie} @(rf/subscribe [:movie])
+  (let [{:keys [average-rating title overview tmdb-poster-path tmdb-id imdb-id release-date runtime uuid movie-id] :as movie} @(rf/subscribe [:movie])
         account @(rf/subscribe [:account])]
     [:<>
      [:p "This is a movie."]

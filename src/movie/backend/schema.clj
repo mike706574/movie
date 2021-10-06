@@ -1,29 +1,17 @@
 (ns movie.backend.schema
-  (:require [malli.core :as m]
-            [malli.util :as mu]))
+  (:require [malli.util :as mu]))
 
 (def audit-info
-  [:map {:closed true}
-   [:created inst?]])
+  [:map [:created inst?]])
 
 (defn with-audit [schema]
   (mu/union schema audit-info))
 
-(def email-and-password-params
-  [:map
-   [:email string?]
-   [:password string?]])
-
-(def uuid-params
-  [:map
-   [:uuid string?]])
-
 (def account-model
-  (with-audit [:map {:closed true}
-               [:email string?]]))
+  (with-audit [:map [:email string?]]))
 
 (def movie-template
-  [:map {:closed true}
+  [:map
    [:title string?]
    [:letter string?]
    [:path string?]
@@ -41,6 +29,8 @@
 (def movie-model
   (with-audit
     (mu/union
-     [:map {:closed true}
-      [:uuid string?]]
+     [:map
+      [:uuid string?]
+      [:rating [:maybe decimal?]]
+      [:average-rating [:maybe decimal?]]]
      movie-template)))

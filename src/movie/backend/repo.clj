@@ -33,10 +33,13 @@
   (db/select-items db :movie-view))
 
 (defn list-account-movies [db email]
-  (db/select-items db :account-movie-view {:keys {:account-id (get-account-id db email)}}))
+  (let [account-id (get-account-id db email)]
+    (db/select-items db :account-movie-view {:keys {:account-id account-id}})))
 
 (defn get-account-movie [db email keys]
-  (first (db/select-items db :account-movie-view {:keys (assoc keys :account-id (get-account-id db email))})))
+  (let [account-id (get-account-id db email)
+        keys (assoc keys :account-id account-id)]
+    (db/select-first-item db :account-movie-view {:keys keys})))
 
 (defn clear-movies! [db]
   (db/clear-items! db :movie))
