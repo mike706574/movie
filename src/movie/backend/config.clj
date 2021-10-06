@@ -13,6 +13,13 @@
       (throw (ex-info "Admin password environment variable not set."
                       {:var admin-password-var}))))
 
+(def secret-var "SECRET")
+
+(defn get-secret []
+  (or (config/get-env-var secret-var)
+      (throw (ex-info "Secret environment variable not set."
+                      {:var secret-var}))))
+
 (defn config
   ([]
    (config {:admin-password (get-admin-password)
@@ -20,7 +27,11 @@
             :port (get-port)}))
   ([{:keys [admin-password env port]}]
    {:port port
-    :admin-password admin-password
+    :auth {:admin-password admin-password
+           :secret (case env
+                     "dev" "secret"
+                     "prod" (get-secret)
+                     (throw (ex-info "Invalid env" {:env env})))}
     :db (case env
           "dev" {:dbtype "postgresql"
                  :classname "org.postgresql.Driver"

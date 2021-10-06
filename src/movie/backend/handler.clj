@@ -4,7 +4,7 @@
             [movie.backend.routes :as routes]
             [muuntaja.core :as m]
             [reitit.ring :as ring]
-            [reitit.coercion.spec]
+            [reitit.coercion.malli]
             [reitit.ring.coercion :as coercion]
             [reitit.ring.middleware.muuntaja :as muuntaja]
             [reitit.ring.middleware.exception :as exception]
@@ -16,7 +16,7 @@
 (defn router [deps]
   (ring/router
    (routes/routes deps)
-   {:data {:coercion reitit.coercion.spec/coercion
+   {:data {:coercion reitit.coercion.malli/coercion
            :muuntaja m/instance
            :middleware [muuntaja/format-middleware
                         parameters/parameters-middleware
@@ -36,16 +36,16 @@
    {:middleware [mw/logging]}))
 
 (defprotocol IHandlerFactory
-  (build [hf]))
+  (build [this]))
 
-(defrecord HandlerFactory [admin-password db tmdb]
+(defrecord HandlerFactory [auth db tmdb]
   IHandlerFactory
   (build [this] (handler this))
   component/Lifecycle
   (start [this] this)
   (stop [this] this))
 
-(defn factory [{:keys [admin-password]}]
+(defn new-factory [{:keys [admin-password]}]
   (component/using
    (map->HandlerFactory {:admin-password admin-password})
-   [:db :tmdb]))
+   [:auth :db :tmdb]))

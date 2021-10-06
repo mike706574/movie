@@ -97,7 +97,7 @@
      :query query
      :body []}))
 
-(defn client
+(defn new-client
   [config]
   (case (or (:type config) "api")
     "api" (map->ApiTmdbClient config)

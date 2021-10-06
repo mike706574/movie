@@ -1,48 +1,59 @@
 (ns movie.backend.routes
-  (:require [movie.backend.auth :as auth]
+  (:require [malli.core :as m]
+            [malli.util :as mu]
+            [movie.backend.auth :as auth]
             [movie.backend.middleware :as mw]
             [movie.backend.repo :as repo]
+            [movie.backend.schema :as s]
             [movie.common.tmdb :as tmdb]
             [reitit.swagger :as swagger]
             [ring.util.response :as resp]
             [taoensso.timbre :as log]))
 
+(def email-and-password-params
+  [:map
+   [:email string?]
+   [:password string?]])
+
+(def uuid-params
+  [:map
+   [:uuid string?]])
+
 (defn routes
-  [{:keys [admin-password db tmdb]}]
+  [{:keys [auth db tmdb]}]
   [["/" {:get {:no-doc true
-               :parameters {}
-               :responses  {200 {:body any?}}
                :handler (fn [_] (resp/resource-response "public/index.html"))}}]
 
    ["/swagger.json" {:get {:no-doc true
                            :swagger {:info {:title "movie api"}}
                            :handler (swagger/create-swagger-handler)}}]
 
-   ["/api" {:middleware [mw/auth]}
+   ["/api" {:middleware [(auth/middleware auth)]}
     ["/accounts" {:get {:parameters {}
-                        :responses {200 {:body any?}}
-                        :handler (fn []
+                        :responses {200 {:body [:sequential s/account-model]}}
+                        :handler (fn [req]
                                    {:status 200
                                     :body (repo/list-accounts db)})}
 
-                  :post {:parameters {:body {:email string? :password string?}}
-                         :responses {200 {:body any?}}
+                  :post {:parameters {:body email-and-password-params}
+                         :responses {200 {:body [:map {:closed true}
+                                                 [:email string?]]}}
                          :handler (fn [{{{:keys [email password]} :body :as params} :parameters :as req}]
-                                    (let [{:keys [status]} (auth/register-account db email password)]
+                                    (let [{:keys [status]} (auth/register-account auth email password)]
                                       (case status
                                         "registered" {:status 200 :body {:email email}}
                                         "email-taken" {:status 400 :body {:error "email-taken"}})))}}]
 
-    ["/tokens" {:post {:parameters {:body {:email string? :password string?}}
+    ["/tokens" {:post {:parameters {:body email-and-password-params}
                        :responses {200 {:body any?}}
                        :handler (fn [{{{:keys [email password]} :body :as params} :parameters :as req}]
-                                  (let [{:keys [status account token]} (auth/generate-token db admin-password email password)]
+                                  (let [{:keys [status account token]} (auth/generate-token auth email password)]
                                     (if (= status "generated")
-                                      {:status 200 :body {:account account :token token}}
+                                      {:status 200 :body (assoc account :token token)}
                                       {:status 401 :body {:error status}})))}}]
 
     ["/movies" {:get {:parameters {}
-                      :responses {200 {:body any?}}
+                      :responses {200 {:body [:sequential s/movie-model]}}
                       :handler (fn [{identity :identity}]
                                  {:status 200
                                   :body (if identity
@@ -50,15 +61,15 @@
                                           (repo/list-movies db))})}
 
                 :post {:middleware [mw/auth-required mw/admin-required]
-                       :parameters {:body any?}
+                       :parameters {:body [:sequential any?]}
                        :responses {200 {:body any?}}
                        :handler (fn [{{movies :body} :parameters identity :identity}]
                                   (log/debug "Syncing movies." {:identity identity})
                                   (let [result (repo/sync-movies! db movies)]
                                     {:status 200 :body result}))}}]
 
-    ["/movies/:uuid" {:get {:parameters {:path {:uuid string?}}
-                            :responses {200 {:body any?}}
+    ["/movies/:uuid" {:get {:parameters {:path uuid-params}
+                            :responses {200 {:body s/movie-model}}
                             :handler (fn [{{{uuid :uuid} :path} :parameters identity :identity}]
                                        (if-let [movie (if identity
                                                         (repo/get-account-movie db (:email identity) {:uuid uuid})
@@ -67,8 +78,9 @@
                                          {:status 404 :body {:uuid uuid}}))}
 
                       :post {:middleware [mw/auth-required]
-                             :parameters {:body any?
-                                          :path {:uuid string?}}
+                             :parameters {:body [:map {:closed true}
+                                                 [:maybe decimal?]]
+                                          :path uuid-params}
                              :responses {200 {:body any?}}
                              :handler (fn [{{model :body {uuid :uuid} :path} :parameters
                                             {email :email} :identity}]
@@ -76,7 +88,7 @@
                                           (repo/rate-movie! db uuid email rating)
                                           {:status 200 :body {:rating rating}}))}}]
 
-    ["/tmdb/search" {:get {:parameters {:query {:title string?}}
+    ["/tmdb/search" {:get {:parameters {:query [:map [:title string?]]}
                            :responses {200 {:body any?}}
                            :handler (fn [{{{:keys [title]} :query} :parameters}]
                                       (let [results (tmdb/search-movies tmdb title)]

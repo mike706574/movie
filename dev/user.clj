@@ -65,12 +65,12 @@
   (go))
 
 (def db (db/new-db (:db config)))
-(def tmdb (tmdb/client (:tmdb config)))
+(def tmdb (tmdb/new-client (:tmdb config)))
 
 (def cli-config (cli-config/config {:env "dev" :password admin-password}))
 (def deps (cli-config/deps cli-config))
 
-(def client (client/client (:client cli-config)))
+(def client (client/new-client (:client cli-config)))
 
 (def test-dir "movies")
 
@@ -123,6 +123,8 @@
   (storage/populate-movie-metadata! test-dir)
 
   ;; repo
+  (repo/get-account-with-password db {:email "mike"})
+  (repo/get-account db {:email "mike"})
   (repo/clear-movies! db)
   (repo/insert-movies! db (storage/read-movies-dir test-dir))
   (repo/list-movies db)
@@ -135,6 +137,7 @@
   (repo/rate-movie! db akira 3.5)
 
   ;; client
+  (client/get-accounts client)
   (client/list-movies client)
   (client/sync-movies! client (storage/read-movies-dir test-dir))
 

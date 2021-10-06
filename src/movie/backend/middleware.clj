@@ -5,9 +5,6 @@
             [movie.common.json :as json]
             [taoensso.timbre :as log]))
 
-(defn auth [handler]
-  (auth-middleware/wrap-authentication handler auth/token-backend))
-
 (defn auth-required [handler]
   (fn [req]
     (if (auth/authenticated? req)
@@ -20,8 +17,7 @@
       (handler req)
       {:status 403 :body {:error "Must be an admin"}})))
 
-(defn logging
-  [handler]
+(defn logging [handler]
   (fn [{:keys [uri method] :as request}]
     (if (str/starts-with? uri "/js/")
       (handler request)

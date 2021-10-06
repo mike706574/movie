@@ -46,7 +46,7 @@
       (stop-service this)
       (already-stopped this))))
 
-(defn service
+(defn new-service
   [{:keys [port] :as config}]
   {:pre [(integer? port)
          (> port 0)]}

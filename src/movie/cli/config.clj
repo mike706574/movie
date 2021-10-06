@@ -26,5 +26,5 @@
 (defn deps
   [config]
   {:path (:path config)
-   :client (client/client (:client config))
-   :tmdb (tmdb/client (:tmdb config))})
+   :client (client/new-client (:client config))
+   :tmdb (tmdb/new-client (:tmdb config))})

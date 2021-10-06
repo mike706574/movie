@@ -1,7 +1,11 @@
 (ns movie.backend.db
-  (:require [migratus.core :as migratus]
+  (:require [clojure.set :as set]
+            [clojure.string :as str]
+            [migratus.core :as migratus]
             [next.jdbc :as jdbc]
-            [next.jdbc.result-set :as rs]))
+            [next.jdbc.result-set :as rs]
+            [next.jdbc.sql :as sql]
+            [next.jdbc.sql.builder :as builder]))
 
 (defn- index-by
   "Returns a map in which values are items of coll and keys are the result of applying f to each item."
@@ -143,3 +147,49 @@ WHERE tc.constraint_type = 'PRIMARY KEY' AND kcu.table_schema !~ '^pg_' AND kcu.
                      :columns (into #{} (get columns-lookup table-key))
                      :pk-column (get pk-column-lookup table-key)))))
          set)))
+
+;; TODO: Document
+(defn- dashed [x] (keyword (str/replace (name x) #"_" "-")))
+(defn- underscored [x] (keyword (str/replace (name x) #"-" "_")))
+
+(defn- adjust-keys [keys]
+  (update-keys keys underscored))
+
+(defn select-items
+  ([db table]
+   (select-items db table {}))
+  ([db table {:keys [keys cols]}]
+   (let [mapper #(update-keys % dashed)
+         rows (let [key-map (if keys (adjust-keys keys) :all)]
+                (sql/find-by-keys db (underscored table) key-map {:cols (map underscored cols)}))]
+     (map mapper rows))))
+
+(defn insert-items! [db table cols items]
+  (let [rows (map (fn [item] (map #(get item %) cols)) items)
+        cols (map underscored cols)]
+    (sql/insert-multi! db (underscored table) cols rows)))
+
+(defn insert-item! [db table item]
+  (sql/insert! db (underscored table) (update-keys item underscored)))
+
+(defn update-items! [db table primary-key keys items]
+  (let [sets (->> keys
+                  (map underscored)
+                  (map name)
+                  (map #(str % " = ?"))
+                  (str/join ", "))
+        primary-key-col (name (underscored primary-key))
+        sql (str "UPDATE " (name (underscored table)) " SET " sets " WHERE " primary-key-col " = ?")
+        bindings (mapv
+                  (fn [item]
+                    (conj
+                     (mapv #(get item %) keys)
+                     (get item primary-key)))
+                  items)]
+    (jdbc/execute-batch! db sql bindings {})))
+
+(defn deactivate-item! [db table keys]
+  (sql/update! db (underscored table) {:active false} (adjust-keys keys)))
+
+(defn clear-items! [db table]
+  (jdbc/execute! db ["DELETE FROM " (underscored table)]))

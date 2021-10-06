@@ -23,6 +23,7 @@
 
 (defprotocol SystemClient
   (register [this email password])
+  (get-accounts [this])
   (list-movies [this])
   (sync-movies! [this movies]))
 
@@ -32,6 +33,9 @@
     (post-request {:url (str url "/api/accounts")
                    :body {:email new-email :password new-password}}))
 
+  (get-accounts [_]
+    (get-request {:url (str url "/api/accounts")}))
+
   (list-movies [_]
     (get-request {:url (str url "/api/movies")}))
 
@@ -40,6 +44,6 @@
                    :body movies
                    :headers (get-auth-headers this)})))
 
-(defn client
+(defn new-client
   [config]
   (map->ApiSystemClient config))
