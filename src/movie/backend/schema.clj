@@ -13,7 +13,7 @@
 (def movie-template
   [:map
    [:title string?]
-   [:letter string?]
+   [:category string?]
    [:path string?]
    [:release-date [:maybe string?]]
    [:overview [:maybe string?]]
@@ -31,6 +31,6 @@
     (mu/union
      [:map
       [:uuid string?]
-      [:rating [:maybe decimal?]]
-      [:average-rating [:maybe decimal?]]]
+      [:rating {:optional true} [:maybe decimal?]]
+      [:average-rating {:optional true} [:maybe decimal?]]]
      movie-template)))

@@ -26,8 +26,7 @@
            :loading false
            :error nil
            :page-number nil
-           :movie-letter nil
-           :movie-letter-input-type :full
+           :category nil
            :movies nil
            :movie nil})))
 
@@ -107,7 +106,7 @@
    (-> db
        (merge {:loading false
                :page-number 1
-               :movie-letter nil
+               :category nil
                :movies (js->clj response)}))))
 
 ;; Fetching a movie
@@ -163,23 +162,9 @@
 
 ;; Movie letters
 (rf/reg-event-db
- :previous-letter
- (fn [db _]
-   (-> db
-       (update :movie-letter alphabet/previous)
-       (assoc :page-number 1))))
-
-(rf/reg-event-db
- :next-letter
- (fn [db _]
-   (-> db
-       (update :movie-letter alphabet/next)
-       (assoc :page-number 1))))
-
-(rf/reg-event-db
- :to-letter
- (fn [db [_ new-letter]]
-   (assoc db :movie-letter new-letter :page-number 1)))
+ :to-category
+ (fn [db [_ new-category]]
+   (assoc db :category new-category :page-number 1)))
 
 ;; Movie filter
 (rf/reg-event-db
@@ -187,19 +172,11 @@
  (fn [db [_ text]]
    (assoc db :movie-filter-text text :page-number 1)))
 
-(rf/reg-event-db
- :toggle-movie-letter-input-type
- (fn [db _]
-   (update db :movie-letter-input-type
-           #(case %
-              :full :skinny
-              :skinny :full))))
-
 ;; Error handling
 (rf/reg-event-db
  :handle-failure
  (fn [db [_ response]]
-   (assoc db :error response)))
+   (assoc db :error response :loading false)))
 
 ;; Routing
 (rf/reg-event-fx
@@ -253,13 +230,13 @@
 (def page-size 12)
 
 (defn filter-movies
-  [{:keys [movie-letter movie-filter-text movies page-number]}]
-  (let [letter-movies (if movie-letter
-                        (filter #(= (:letter %) movie-letter) movies)
-                        movies)
-        filtered-movies (if (str/blank? movie-filter-text)
-                          (into [] letter-movies)
-                          (into [] (filter #(util/includes-ignore-case? (:title %) movie-filter-text) letter-movies)))
+  [{:keys [category movie-filter-text movies page-number]}]
+  (let [category-movies (if category
+                          (filter #(= (:category %) category) movies)
+                          movies)
+        filtered-movies (into [](if (str/blank? movie-filter-text)
+                                  category-movies
+                                  (filter #(util/includes-ignore-case? (:title %) movie-filter-text) category-movies)))
         movie-count (count filtered-movies)
         page-count (max 1 (quot movie-count page-size))
         page-index (if page-number
@@ -283,10 +260,9 @@
     (:movie-filter-text db)))
 
 (rf/reg-sub
-  :movie-letter-state
+  :category
   (fn [db _]
-    (select-keys db [:movie-letter
-                     :movie-letter-input-type])))
+    (:category db)))
 
 ;; -- Views --
 
@@ -316,12 +292,11 @@
           "Rate"]]))))
 
 
-(defn movie-item
-  [{:keys [movie-path]}]
+(defn movie-item [{:keys [movie-path]}]
   [:li {:key movie-path} movie-path])
 
 (defn movie-filter-input []
-  [:div.pb-3
+  [:div.mb-3
    [:input.form-control
     {:id "movie-filter-input"
      :placeholder "Title"
@@ -330,26 +305,53 @@
      :value @(rf/subscribe [:movie-filter-text])
      :on-change #(rf/dispatch [:movie-filter-change (-> % .-target .-value)])}]])
 
-(defn movie-letter-input
-  []
-  (let [{:keys [movie-letter]} @(rf/subscribe [:movie-letter-state])]
-    [:div
-     (let [defaulted-movie-letter (or movie-letter "A")
-           [before-previous previous] (alphabet/take-before 2 defaulted-movie-letter)
-           [next after-next] (alphabet/take-after 2 defaulted-movie-letter)]
-       [:ul.pagination
-        (nav/previous-link #(rf/dispatch [:previous-letter]))
-        (nav/page-link before-previous #(rf/dispatch [:to-letter before-previous]))
-        (nav/page-link previous #(rf/dispatch [:previous-letter]))
-        (if movie-letter
-          (nav/active-page-link movie-letter)
-          (nav/page-link defaulted-movie-letter #(rf/dispatch [:to-letter defaulted-movie-letter])))
-        (nav/page-link next #(rf/dispatch [:next-letter]))
-        (nav/page-link after-next #(rf/dispatch [:to-letter after-next]))
-        (nav/next-link #(rf/dispatch [:next-letter]))])]))
+(defn kids-select []
+  (let [category @(rf/subscribe [:category])
+        active? (= category "kids")]
+    [:a.page-link
+     {:aria-label "Kids"
+      :style {"cursor" "pointer"
+              "color" "#0275d8"}
+      :class (when-not active? "disabled")
+      :on-click (when active? #(rf/dispatch [:to-category "kids"]))}
+     [:span {:aria-hidden "true"} "Kids"]]))
 
-(defn movie-pagination
-  []
+(defn movie-category-input []
+  (let [category @(rf/subscribe [:category])
+        kids? (= category "kids")
+        letter (when (alphabet/alphabet-map category) category)]
+    [:div.row
+     [:div.col-sm-auto
+      (let [defaulted-letter (or letter "a")
+            [before-previous previous] (alphabet/take-before 2 defaulted-letter)
+            [next after-next] (alphabet/take-after 2 defaulted-letter)]
+        [:ul.pagination
+         (nav/previous-link #(rf/dispatch [:to-category previous]))
+         (nav/page-link (str/capitalize before-previous) #(rf/dispatch [:to-category before-previous]))
+         (nav/page-link (str/capitalize previous) #(rf/dispatch [:to-category previous]))
+         (if letter
+           (nav/active-page-link (str/capitalize letter))
+           (nav/page-link (str/capitalize defaulted-letter) #(rf/dispatch [:to-category defaulted-letter])))
+         (nav/page-link (str/capitalize next) #(rf/dispatch [:to-category next]))
+         (nav/page-link (str/capitalize after-next) #(rf/dispatch [:to-category after-next]))
+         (nav/next-link #(rf/dispatch [:to-category next]))])]
+     [:div.col-sm-auto
+      [:a.page-link
+       {:aria-label "Kids"
+        :style (merge {"cursor" "pointer"
+                       "color" "#0275d8"}
+                      (when kids?
+                        {"zIndex" "3"
+                         "color" "#fff"
+                         "backgroundColor" "#0d6efd"
+                         "borderColor" "#0d6efd"}))
+        :class (if kids?
+                 "active"
+                 "disabled")
+        :on-click (when-not kids? #(rf/dispatch [:to-category "kids"]))}
+       [:span {:aria-hidden "true"} "Kids"]]]]))
+
+(defn movie-pagination []
   (let [{:keys [page-number page-count filtered-movie-count]} @(rf/subscribe [:page])]
     (when-not (zero? filtered-movie-count)
       [:ul.pagination
@@ -364,18 +366,16 @@
          (nav/disabled-next-link)
          (nav/next-link #(rf/dispatch [:next-page])))])))
 
-(defn ellipsis
-  [length string]
+(defn ellipsis [length string]
   (if (> (count string) length)
     (str (str/trim (str/join (take length string))) "...")
     string))
 
-(defn movies
-  []
+(defn movies []
   (let [movies (:movies @(rf/subscribe [:page]))
         account @(rf/subscribe [:account])]
     (if (empty? movies)
-      [:div.text-center.pt-5.pb-5
+      [:div.text-center.mt-5.mb-5
        [:h3 "No movies found."]]
       [:div.row.row-cols-1.row-cols-md-3.g-4
        (for [{:keys [title
@@ -565,16 +565,7 @@
            :on-click #(rf/dispatch [:login params])}
           "Submit"]]))))
 
-(defn home-page []
-  [:<>
-   [:p "These are my movies."]
-   [:nav
-    [movie-letter-input]
-    [movie-filter-input]
-    [movie-pagination]]
-   [movies]
-   [:nav
-    [movie-pagination]]])
+
 
 (defn app []
   (let [{:keys [loading error account]} @(rf/subscribe [:state])
@@ -606,6 +597,17 @@
                 [:pre (with-out-str (pprint/pprint error))])]
        :else (when current-route
                [(-> current-route :data :view)]))]))
+
+(defn home-page []
+  [:<>
+   [:p "These are my movies."]
+   [:nav
+    [movie-category-input]
+    [movie-filter-input]
+    [movie-pagination]]
+   [movies]
+   [:nav
+    [movie-pagination]]])
 
 ;; -- Routes --
 

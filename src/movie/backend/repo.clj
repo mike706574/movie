@@ -46,7 +46,7 @@
 
 (def movie-fields
   [:title
-   :letter
+   :category
    :path
    :release-date
    :overview

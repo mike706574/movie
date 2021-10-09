@@ -9,7 +9,8 @@
             :password (config/get-env-var "")}))
 
   ([{:keys [env password]}]
-   {:path "movies"
+   {:sources [{:kind "root-dir" :path "movies/adults"}
+              {:kind "category-dir" :path "movies/kids" :category "kids"}]
     :tmdb {:type "api"
            :url "https://api.themoviedb.org/3"
            :key "7197608cef1572f5f9e1c5b184854484"
@@ -25,6 +26,6 @@
 
 (defn deps
   [config]
-  {:path (:path config)
+  {:sources (:sources config)
    :client (client/new-client (:client config))
    :tmdb (tmdb/new-client (:tmdb config))})

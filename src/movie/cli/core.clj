@@ -6,8 +6,7 @@
             [movie.common.tmdb :as tmdb]
             [taoensso.timbre :as log]))
 
-(defn ellipsis
-  [length string]
+(defn ellipsis [length string]
   (if (> (count string) length)
     (str (str/trim (str/join (take length string))) "...")
     string))
@@ -15,8 +14,7 @@
 (defn rand-uuid []
   (.toString (java.util.UUID/randomUUID)))
 
-(defn list-movies
-  [{:keys [client]}]
+(defn list-movies [{:keys [client]}]
   (client/list-movies client))
 
 (defn process-info
@@ -90,9 +88,15 @@
             (when num
               (get selected-movies (dec num)))))))))
 
-(defn sync-movies!
-  [{:keys [path client tmdb]}]
-  (let [raw-movies (storage/read-movies-dir path)
+(defn sync-movies! [{:keys [sources client tmdb]}]
+  (let [raw-movies (mapcat
+                    (fn [{:keys [kind path category] :as source}]
+                      (log/info "Reading from source" source)
+                      (case kind
+                        "root-dir" (storage/read-root-dir path)
+                        "category-dir" (storage/read-category-dir path category)
+                        (throw (ex-info "Invalid source kind" {:kind kind}))))
+                    sources)
         movies (map
                 (fn [movie]
                   (let [{:keys [path title tmdb-id uuid]} movie]

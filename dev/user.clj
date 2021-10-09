@@ -75,29 +75,29 @@
 (def test-dir "movies")
 
 (def test-movies
-  [{:title "Aladdin", :video-files ["Aladdin.mp4"] :letter "A"}
-   {:title "Airplane", :video-files ["Airplane.mp4"] :letter "A"}
-   {:title "Akira", :video-files ["Akira.mp4"] :letter "A"}
-   {:title "Beauty and the Beast", :video-files ["Beauty and the Beast.mp4"] :letter "B"}])
+  [{:title "Aladdin" :video-files ["Aladdin.mp4"] :path "kids"}
+   {:title "Airplane" :video-files ["Airplane.mp4"] :path "adults/a"}
+   {:title "Akira" :video-files ["Akira.mp4"] :path "adults/a"}
+   {:title "Beauty and the Beast" :video-files ["Beauty and the Beast.mp4"] :path "kids"}
+   {:title "Blade Runner" :video-files ["Blade Runner.mp4"] :path "adults/b"}
+   {:title "The 39 Steps" :video-files ["The 39 Steps.mp4"] :path "adults/#"}])
 
 (def new-test-movie
-  {:title "Mulan" :video-files ["Mulan.mp4"] :letter "M"})
+  {:title "Mulan" :video-files ["Mulan.mp4"] :path "adults/m"})
 
 (defn register-users []
   (client/register client "mike" "mike!")
   (client/register client "abby" "abby!"))
 
-
 (defn sim-1 []
   (db/reset db)
   (register-users)
-  (storage/mock-dir! test-dir test-movies)
+  (storage/mock-movie-dirs! test-dir test-movies)
   (core/sync-movies! deps))
 
 (defn sim-2 []
-  (storage/mock-movie! test-dir new-test-movie)
-  (core/sync-movies! deps)
-  )
+  (storage/mock-movie-dir! test-dir new-test-movie)
+  (core/sync-movies! deps))
 
 (defn sim-3 []
   (core/sync-movies! deps))
@@ -158,4 +158,6 @@
   (core/sync-movies! prod-deps)
 
   (db/reset prod-db)
+
+  (storage/category-path "movies/kids" "kids")
   )
