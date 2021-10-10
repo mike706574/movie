@@ -36,8 +36,6 @@
 (defn validate-args
   [args]
   (let [{:keys [options arguments errors summary]} (cli/parse-opts args cli-options)]
-    (println (count arguments))
-    (println (first arguments))
     (cond
       (:help options) ; help => exit OK with usage summary
       {:exit-message (usage summary) :ok? true}
