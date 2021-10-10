@@ -11,7 +11,9 @@
   [["-e" "--env ENV" "Environment"
     :default "prod"]
    ["-u" "--client-url URL" "Client URL"]
-   ["-d" "--dir DIR" "Directory path"]
+   ["-k" "--kind KIND" "Source kind"]
+   ["-d" "--dir DIR" "Source directory"]
+   ["-c" "--category CATEGORY" "Source category"]
    ["-p" "--password PASSWORD" "Password"]
    ["-h" "--help"]])
 
@@ -34,6 +36,8 @@
 (defn validate-args
   [args]
   (let [{:keys [options arguments errors summary]} (cli/parse-opts args cli-options)]
+    (println (count arguments))
+    (println (first arguments))
     (cond
       (:help options) ; help => exit OK with usage summary
       {:exit-message (usage summary) :ok? true}
@@ -59,14 +63,13 @@
   (let [{:keys [action options exit-message ok?]} (validate-args args)]
     (if exit-message
       (exit (if ok? 0 1) exit-message)
-      (let [{:keys [dir client-url env password]} options
+      (let [{:keys [category client-url dir env kind password]} options
             config (-> (config/config {:env env})
                        (assoc-in-when [:client :url] client-url)
                        (assoc-in-when [:client :password] password)
-                       (assoc-in-when [:path] dir))
+                       (assoc-in-when [:sources] (when (and kind dir)
+                                                   [{:kind kind :path dir :category category}])))
             deps (config/deps config)]
-        (println "Options" options)
-        (println "Config" config)
         (case action
           "sync-movies" (pprint/pprint (core/sync-movies! deps))
           (exit 1 (str "Invalid action: " action)))))))

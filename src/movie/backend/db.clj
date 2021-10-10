@@ -196,4 +196,4 @@ WHERE tc.constraint_type = 'PRIMARY KEY' AND kcu.table_schema !~ '^pg_' AND kcu.
   (sql/update! db (underscored table) {:active false} (adjust-keys keys)))
 
 (defn clear-items! [db table]
-  (jdbc/execute! db ["DELETE FROM " (underscored table)]))
+  (jdbc/execute! db [(str "DELETE FROM " (name (underscored table)))]))

@@ -91,11 +91,13 @@
 (defn sync-movies! [{:keys [sources client tmdb]}]
   (let [raw-movies (mapcat
                     (fn [{:keys [kind path category] :as source}]
-                      (log/info "Reading from source" source)
-                      (case kind
-                        "root-dir" (storage/read-root-dir path)
-                        "category-dir" (storage/read-category-dir path category)
-                        (throw (ex-info "Invalid source kind" {:kind kind}))))
+                      (log/info "Reading movies from source" source)
+                      (let [movies (case kind
+                                     "root-dir" (storage/read-root-dir path)
+                                     "category-dir" (storage/read-category-dir path category)
+                                     (throw (ex-info "Invalid source kind" {:kind kind})))]
+                        (log/info "Read movies from source" (assoc source :count (count movies)))
+                        movies ))
                     sources)
         movies (map
                 (fn [movie]

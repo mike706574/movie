@@ -155,7 +155,9 @@
 
 (comment
   (backend-config/config)
+
   (core/sync-movies! prod-deps)
+  (repo/clear-movies! prod-db)
 
   (db/reset prod-db)
 

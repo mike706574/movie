@@ -24,8 +24,7 @@
                       :email "admin"
                       :password password})}))
 
-(defn deps
-  [config]
+(defn deps [config]
   {:sources (:sources config)
    :client (client/new-client (:client config))
    :tmdb (tmdb/new-client (:tmdb config))})

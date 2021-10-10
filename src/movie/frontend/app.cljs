@@ -160,7 +160,7 @@
  (fn [db [_ page-number]]
    (assoc db :page-number page-number)))
 
-;; Movie letters
+;; Movie category
 (rf/reg-event-db
  :to-category
  (fn [db [_ new-category]]
@@ -417,7 +417,7 @@
               [rating-form movie])]]])])))
 
 (defn movie-page []
-  (let [{:keys [average-rating title overview tmdb-poster-path tmdb-id imdb-id release-date runtime uuid movie-id] :as movie} @(rf/subscribe [:movie])
+  (let [{:keys [average-rating category title overview tmdb-poster-path tmdb-id imdb-id release-date runtime uuid] :as movie} @(rf/subscribe [:movie])
         account @(rf/subscribe [:account])]
     [:<>
      [:p "This is a movie."]
@@ -460,8 +460,8 @@
            [:th {:scope "row"} "UUID"]
            [:td uuid]]
           [:tr
-           [:th {:scope "row"} "ID"]
-           [:td movie-id]]
+           [:th {:scope "row"} "Category"]
+           [:td (str/capitalize category)]]
           [:tr
            [:th {:scope "row"} "Links"]
            [:td
