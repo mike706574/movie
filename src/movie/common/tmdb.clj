@@ -46,19 +46,26 @@
 
 (defn- get-paginated-results [req]
   (loop [page 1 all-results []]
-    (let [{:keys [status body] :as response} (get-request (assoc-in req [:query-params "page"] page))]
+    (let [{:keys [limit]} req
+          {:keys [status body] :as response} (get-request (-> req
+                                                              (assoc-in [:query-params "page"] page)
+                                                              (dissoc :limit)))]
       (if (= status :ok)
         (let [{:keys [page total-pages results]} body
               all-results (into all-results results)]
-          (if (= page total-pages)
-            {:status :ok :body all-results}
-            (recur (inc page) all-results)))
+          (cond
+            (= page total-pages) {:status :ok :body all-results}
+            (and limit (<= limit (count all-results))) {:status :ok
+                                                        :body (take limit all-results)}
+            :else (recur (inc page) all-results)))
         response))))
 
 (defprotocol TmdbClient
   (get-config [this])
   (get-movie [this id])
-  (search-movies [this query]))
+  (search-movies
+    [this query]
+    [this query options]))
 
 (defrecord ApiTmdbClient [url key retry-options]
   TmdbClient
@@ -74,11 +81,16 @@
                     :query-params {"api_key" key}
                     :retry-options retry-options})))
 
-  (search-movies [_ query]
-    (let [url (str url "/search/movie")]
+  (search-movies [this query]
+    (search-movies this query {}))
+
+  (search-movies [_ query options]
+    (let [url (str url "/search/movie")
+          {:keys [limit]} options]
       (get-paginated-results {:url url
                               :query-params {"query" query "api_key" key}
-                              :retry-options retry-options}))))
+                              :retry-options retry-options
+                              :limit limit}))))
 
 (defrecord DummyTmdbClient []
   TmdbClient

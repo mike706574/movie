@@ -107,7 +107,7 @@
   ;; tmdb
   (tmdb/get-config tmdb)
   (-> (tmdb/get-movie tmdb 10020) :body keys set)
-  (-> (tmdb/search-movies tmdb "Beauty and the Beast") :body first)
+  (-> (tmdb/search-movies tmdb "Up" {:limit 10}) :body count)
 
   (tmdb/get-movie tmdb 10020)
 
@@ -162,4 +162,5 @@
   (db/reset prod-db)
 
   (storage/category-path "movies/kids" "kids")
+  (jdbc/execute! prod-db ["DELETE FROM movie WHERE title LIKE '%101%'"])
   )
