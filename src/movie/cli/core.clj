@@ -68,7 +68,7 @@
   (let [movies (search-tmdb-movies tmdb title)]
     (if (empty? movies)
       {}
-      (let [selected-movies (vec (take 5 movies))
+      (let [selected-movies (vec (take 10 movies))
             title-width (apply max (map #(count (:tmdb-title %)) selected-movies))]
         (if (empty? movies)
           (do
