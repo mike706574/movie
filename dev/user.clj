@@ -162,5 +162,5 @@
   (db/reset prod-db)
 
   (storage/category-path "movies/kids" "kids")
-  (jdbc/execute! prod-db ["DELETE FROM movie WHERE title LIKE '%101%'"])
+  (jdbc/execute! prod-db ["SELECT * FROM movie"])
   )

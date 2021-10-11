@@ -64,29 +64,31 @@
 
 (defn resolve-movie-info
   [tmdb title]
+  (println title)
   (let [movies (search-tmdb-movies tmdb title)]
     (if (empty? movies)
       {}
       (let [selected-movies (vec (take 5 movies))
             title-width (apply max (map #(count (:tmdb-title %)) selected-movies))]
-        (when (seq movies)
-          (println title)
-          (doseq [[idx movie] (map-indexed vector selected-movies)]
-            (let [{:keys [release-date tmdb-title overview tmdb-popularity]} movie]
-              (println (inc idx) "|" (right-pad title-width tmdb-title) "|" release-date "|" tmdb-popularity "|" (ellipsis 50 overview))))
-          (let [num (loop []
-                      (print "Choose: ")
-                      (flush)
-                      (let [input (read-line)]
-                        (case input
-                          "q" (throw (ex-info "Quit" {}))
-                          "s" nil
-                          (let [num (parse-num input)]
-                            (if (< 0 num (inc (count selected-movies)))
-                              num
-                              (recur))))))]
-            (when num
-              (get selected-movies (dec num)))))))))
+        (if (empty? movies)
+          (do (println "No movies found") nil)
+          (do
+            (doseq [[idx movie] (map-indexed vector selected-movies)]
+              (let [{:keys [release-date tmdb-title overview tmdb-popularity]} movie]
+                (println (inc idx) "|" (right-pad title-width tmdb-title) "|" release-date "|" tmdb-popularity "|" (ellipsis 50 overview))))
+            (let [num (loop []
+                        (print "Choose: ")
+                        (flush)
+                        (let [input (read-line)]
+                          (case input
+                            "q" (throw (ex-info "Quit" {}))
+                            "s" nil
+                            (let [num (parse-num input)]
+                              (if (< 0 num (inc (count selected-movies)))
+                                num
+                                (recur))))))]
+              (when num
+                (get selected-movies (dec num))))))))))
 
 (defn sync-movies! [{:keys [sources client tmdb]}]
   (let [raw-movies (mapcat
@@ -97,7 +99,7 @@
                                      "category-dir" (storage/read-category-dir path category)
                                      (throw (ex-info "Invalid source kind" {:kind kind})))]
                         (log/info "Read movies from source" (assoc source :count (count movies)))
-                        movies ))
+                        movies))
                     sources)
         movies (map
                 (fn [movie]
@@ -111,4 +113,5 @@
                         (storage/write-metadata! path metadata)
                         (merge movie metadata)))))
                 raw-movies)]
+    (println "Syncing" (count movies) "movies")
     (client/sync-movies! client movies)))
