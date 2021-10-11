@@ -45,9 +45,11 @@
       (do (log/info "Failed to pull info." {:id id :body body})
           nil))))
 
+(def movie-limit 10)
+
 (defn search-tmdb-movies
   [tmdb title]
-  (let [{:keys [status body] :as response} (tmdb/search-movies tmdb title {:limit 5})]
+  (let [{:keys [status body] :as response} (tmdb/search-movies tmdb title {:limit movie-limit})]
     (if-not (= status :ok)
       {:status :error :body response}
       (->> body
@@ -68,8 +70,7 @@
   (let [movies (search-tmdb-movies tmdb title)]
     (if (empty? movies)
       {}
-      (let [selected-movies (vec (take 10 movies))
-            title-width (apply max (map #(count (:tmdb-title %)) selected-movies))]
+      (let [title-width (apply max (map #(count (:tmdb-title %)) movies))]
         (if (empty? movies)
           (do
             (println "No movies found.")
@@ -78,7 +79,7 @@
             (read-line)
             nil)
           (do
-            (doseq [[idx movie] (map-indexed vector selected-movies)]
+            (doseq [[idx movie] (map-indexed vector movies)]
               (let [{:keys [release-date tmdb-title overview tmdb-popularity]} movie]
                 (println (inc idx) "|" (right-pad title-width tmdb-title) "|" release-date "|" tmdb-popularity "|" (ellipsis 50 overview))))
             (let [num (loop []
@@ -89,11 +90,11 @@
                             "q" (throw (ex-info "Quit" {}))
                             "s" nil
                             (let [num (parse-num input)]
-                              (if (< 0 num (inc (count selected-movies)))
+                              (if (< 0 num (inc (count movies)))
                                 num
                                 (recur))))))]
               (when num
-                (get selected-movies (dec num))))))))))
+                (get movies (dec num))))))))))
 
 (defn sync-movies! [{:keys [sources client tmdb]}]
   (let [raw-movies (mapcat
