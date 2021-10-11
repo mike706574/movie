@@ -93,7 +93,7 @@
     (merge
      {:category category
       :path (file-absolute-path path)
-      :title (file-base path)
+      :title (file-name path)
       :video-files (mapv file-name video)
       :subtitle-files (mapv file-name subtitle)
       :other-files (mapv file-name other)}

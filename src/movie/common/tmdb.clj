@@ -98,12 +98,20 @@
     ;; TODO
     {:status :ok
      :body {}})
+
   (get-movie [_ id]
     ;; TODO
     {:status :ok
      :id id
      :body {}})
+
   (search-movies [_ query]
+    ;; TODO
+    {:status :ok
+     :query query
+     :body []})
+
+  (search-movies [_ query options]
     ;; TODO
     {:status :ok
      :query query

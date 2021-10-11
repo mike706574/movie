@@ -102,6 +102,17 @@
 (defn sim-3 []
   (core/sync-movies! deps))
 
+(defn truncate [value places]
+  (let [factor (.pow (BigInteger. "10") places)]
+    (double (/ (int (* factor value)) factor))))
+
+(defn rand-rating []
+  (truncate (rand 10) 1))
+
+(defn rand-rate-movies! [db]
+  (doseq [movie (repo/list-movies db)]
+    (repo/rate-movie! db (:uuid movie) "mike" (rand-rating))))
+
 (comment
 
   ;; tmdb
@@ -122,6 +133,8 @@
   (storage/mock-movie! test-dir new-test-movie)
   (storage/populate-movie-metadata! test-dir)
 
+  (storage/read-root-dir "movies/adults")
+
   ;; repo
   (repo/get-account-with-password db {:email "mike"})
   (repo/get-account db {:email "mike"})
@@ -135,6 +148,8 @@
   (repo/get-movie-id db akira)
 
   (repo/rate-movie! db akira 3.5)
+
+  (repo/list-movies db)
 
   ;; client
   (client/get-accounts client)
