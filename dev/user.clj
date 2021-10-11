@@ -107,7 +107,7 @@
   ;; tmdb
   (tmdb/get-config tmdb)
   (-> (tmdb/get-movie tmdb 10020) :body keys set)
-  (-> (tmdb/search-movies tmdb "Up" {:limit 10}) :body count)
+  (-> (tmdb/search-movies tmdb "Annihalation" {:limit 10}) :body count)
 
   (tmdb/get-movie tmdb 10020)
 

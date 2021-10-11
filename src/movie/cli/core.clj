@@ -71,7 +71,12 @@
       (let [selected-movies (vec (take 5 movies))
             title-width (apply max (map #(count (:tmdb-title %)) selected-movies))]
         (if (empty? movies)
-          (do (println "No movies found") nil)
+          (do
+            (println "No movies found.")
+            (println "Continue: ")
+            (flush)
+            (read-line)
+            nil)
           (do
             (doseq [[idx movie] (map-indexed vector selected-movies)]
               (let [{:keys [release-date tmdb-title overview tmdb-popularity]} movie]
@@ -113,5 +118,5 @@
                         (storage/write-metadata! path metadata)
                         (merge movie metadata)))))
                 raw-movies)]
-    (println "Syncing" (count movies) "movies")
+    (println "Syncing" (count movies) "movies.")
     (client/sync-movies! client movies)))

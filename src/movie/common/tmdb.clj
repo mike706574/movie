@@ -54,7 +54,7 @@
         (let [{:keys [page total-pages results]} body
               all-results (into all-results results)]
           (cond
-            (= page total-pages) {:status :ok :body all-results}
+            (>= page total-pages) {:status :ok :body all-results}
             (and limit (<= limit (count all-results))) {:status :ok
                                                         :body (take limit all-results)}
             :else (recur (inc page) all-results)))
