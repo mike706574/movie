@@ -66,7 +66,7 @@
   (let [all (search-tmdb-movies tmdb title)
         {matches true others false} (group-by #(= (:tmdb-title %) title) all)
         sorted-matches (sort-by :tmdb-popularity #(compare %2 %1) matches)
-        movies (take 5 (concat sorted-matches others))]
+        movies (take 10 (concat sorted-matches others))]
     (if (empty? movies)
       (do
         (println "No movies found.")
@@ -109,11 +109,14 @@
                     (if tmdb-id
                       movie
                       (do (println title "-" path)
-                        (let [uuid (if uuid uuid (rand-uuid))
-                              info (resolve-movie-info tmdb title)
-                              metadata (assoc info :uuid uuid)]
-                          (storage/write-metadata! path metadata)
-                          (merge movie metadata))))))
+                          (if-let [info (resolve-movie-info tmdb title)]
+                            (let [uuid (if uuid uuid (rand-uuid))
+                                  metadata (assoc info :uuid uuid)]
+                              (println "Writing metadata.")
+                              (storage/write-metadata! path metadata)
+                              (merge movie metadata))
+                            (println "Not writing metadata."))
+                        ))))
                 raw-movies)]
     (println "Syncing" (count movies) "movies.")
     (client/sync-movies! client movies)))
