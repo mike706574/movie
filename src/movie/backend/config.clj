@@ -41,7 +41,7 @@
                  :dbname "postgres"
                  :user "postgres"
                  :password "postgres"
-                 :log? true}
+                 :log? false}
           "prod" {:jdbcUrl (or (config/get-env-var "JDBC_DATABASE_URL")
                                (throw (ex-info "JDBC_DATABASE_URL not set" {})))}
           (throw (ex-info "Invalid env" {:env env})))

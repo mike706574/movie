@@ -84,6 +84,11 @@
 (defn metadata-path [path]
   (str path (sep) "metadata.json"))
 
+(defn parse-title [title]
+  (if-let [matches (re-matches #"(.*) \[.*\]" title)]
+    (second matches)
+    title))
+
 (defn read-movie-dir [dir]
   (let [{:keys [path category]} dir
         {:keys [video subtitle other]} (group-by classify-file (list-files path))
@@ -93,7 +98,7 @@
     (merge
      {:category category
       :path (file-absolute-path path)
-      :title (file-name path)
+      :title (parse-title (file-name path))
       :video-files (mapv file-name video)
       :subtitle-files (mapv file-name subtitle)
       :other-files (mapv file-name other)}

@@ -80,7 +80,10 @@
    {:title "Akira" :video-files ["Akira.mp4"] :path "adults/a"}
    {:title "Beauty and the Beast" :video-files ["Beauty and the Beast.mp4"] :path "kids"}
    {:title "Blade Runner" :video-files ["Blade Runner.mp4"] :path "adults/b"}
-   {:title "The 39 Steps" :video-files ["The 39 Steps.mp4"] :path "adults/#"}])
+   {:title "The 39 Steps" :video-files ["The 39 Steps.mp4"] :path "adults/#"}
+   {:title "Boy" :video-files ["Boy.mp4"] :path "adults/b"}
+   {:title "Crash [1996]" :video-files ["Crash.mp4"] :path "adults/c"}
+   {:title "Crash (Cronenberg)" :video-files ["Crash.mp4"] :path "adults/c"}])
 
 (def new-test-movie
   {:title "Mulan" :video-files ["Mulan.mp4"] :path "adults/m"})
@@ -118,7 +121,8 @@
   ;; tmdb
   (tmdb/get-config tmdb)
   (-> (tmdb/get-movie tmdb 10020) :body keys set)
-  (-> (tmdb/search-movies tmdb "Annihalation" {:limit 10}) :body count)
+
+  (->> (tmdb/search-movies tmdb "Boy" {:limit 30}))
 
   (tmdb/get-movie tmdb 10020)
 
@@ -129,7 +133,7 @@
   (db/reset db)
 
   ;; storage
-  (storage/mock-dir! test-dir test-movies)
+  (storage/mock-movie-dirs! test-dir test-movies)
   (storage/mock-movie! test-dir new-test-movie)
   (storage/populate-movie-metadata! test-dir)
 
