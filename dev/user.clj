@@ -122,7 +122,7 @@
   (tmdb/get-config tmdb)
   (-> (tmdb/get-movie tmdb 10020) :body keys set)
 
-  (->> (tmdb/search-movies tmdb "8+1/2" {:limit 30}))
+  (->> (tmdb/search-movies tmdb "Vagabond" {:limit 50}))
 
   (tmdb/get-movie tmdb 10020)
 
