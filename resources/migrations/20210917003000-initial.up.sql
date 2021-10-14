@@ -21,7 +21,7 @@ CREATE TABLE account (
 CREATE TABLE movie (
   movie_id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   uuid TEXT NOT NULL UNIQUE,
-  title TEXT NOT NULL UNIQUE,
+  title TEXT NOT NULL,
   category TEXT NOT NULL,
   path TEXT NOT NULL,
   release_date TEXT,

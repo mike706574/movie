@@ -47,7 +47,7 @@
 
 (defn search-tmdb-movies
   [tmdb title]
-  (let [{:keys [status body] :as response} (tmdb/search-movies tmdb title {:limit 15})]
+  (let [{:keys [status body] :as response} (tmdb/search-movies tmdb title {:limit 25})]
     (if-not (= status :ok)
       {:status :error :body response}
       (->> body
@@ -73,7 +73,7 @@
         (print "Continue: ")
         (flush)
         (read-line)
-        {})
+        nil)
       (let [title-width (apply max (map #(count (:tmdb-title %)) movies))]
         (doseq [[idx movie] (map-indexed vector movies)]
           (let [{:keys [release-date tmdb-title overview tmdb-popularity]} movie]
