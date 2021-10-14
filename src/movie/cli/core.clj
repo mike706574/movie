@@ -47,7 +47,7 @@
 
 (defn search-tmdb-movies
   [tmdb title]
-  (let [{:keys [status body] :as response} (tmdb/search-movies tmdb title {:limit 25})]
+  (let [{:keys [status body] :as response} (tmdb/search-movies tmdb title {:limit 50})]
     (if-not (= status :ok)
       {:status :error :body response}
       (->> body
@@ -66,7 +66,7 @@
   (let [all (search-tmdb-movies tmdb title)
         {matches true others false} (group-by #(= (:tmdb-title %) title) all)
         sorted-matches (sort-by :tmdb-popularity #(compare %2 %1) matches)
-        movies (take 10 (concat sorted-matches others))]
+        movies (take 50 (concat sorted-matches others))]
     (if (empty? movies)
       (do
         (println "No movies found.")
