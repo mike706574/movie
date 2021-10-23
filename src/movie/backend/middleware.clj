@@ -19,10 +19,10 @@
       {:status 403 :body {:error "Must be an admin"}})))
 
 (defn logging [handler]
-  (fn [{:keys [uri method] :as request}]
+  (fn [{:keys [uri request-method] :as request}]
     (if (str/starts-with? uri "/js/")
       (handler request)
-      (let [label (str method " \"" uri "\"")]
+      (let [label (str (str/upper-case (name request-method)) " \"" uri "\"")]
         (try
           (log/info label)
           (let [{:keys [status] :as response} (handler request)]

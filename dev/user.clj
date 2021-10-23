@@ -2,6 +2,7 @@
   (:require [aleph.http :as http]
             [buddy.hashers :as auth-hashers]
             [clojure.set :as set]
+            [clojure.string :as str]
             [clojure.tools.namespace.repl :as repl]
             [com.stuartsierra.component :as component]
             [movie.common.client :as client]
@@ -85,12 +86,26 @@
    {:title "Crash [1996]" :video-files ["Crash.mp4"] :path "adults/c"}
    {:title "Crash (Cronenberg)" :video-files ["Crash.mp4"] :path "adults/c"}])
 
+(defn rand-str [len]
+  (apply str (take len (repeatedly #(char (+ (rand 26) 65))))))
+
+(defn rand-movie []
+  (let [title (rand-str 12)
+        letter (str/lower-case (first title))]
+    {:title title :video-files [(str title ".mp4")] :path (str "adults/" letter)}))
+
 (def new-test-movie
   {:title "Mulan" :video-files ["Mulan.mp4"] :path "adults/m"})
 
 (defn register-users []
   (client/register client "mike" "mike!")
   (client/register client "abby" "abby!"))
+
+(defn sim-many []
+  (db/reset db)
+  (register-users)
+  (storage/mock-movie-dirs! test-dir (repeatedly 200 rand-movie))
+  (core/seed-movies! deps))
 
 (defn sim-1 []
   (db/reset db)
@@ -117,7 +132,6 @@
     (repo/rate-movie! db (:uuid movie) "mike" (rand-rating))))
 
 (comment
-
   ;; tmdb
   (tmdb/get-config tmdb)
   (-> (tmdb/get-movie tmdb 10020) :body keys set)
@@ -163,7 +177,11 @@
   ;; core
   (core/sync-movies! deps)
   (core/list-movies deps)
-)
+
+
+  )
+
+
 
 (def prod-db
   (jdbc/get-datasource (config/get-env-var "JDBC_DATABASE_URL")))
@@ -173,6 +191,10 @@
 (def prod-deps (cli-config/deps prod-cli-config))
 
 (comment
+
+  (page-range 3 5)
+
+
   (backend-config/config)
 
   (core/sync-movies! prod-deps)
@@ -182,4 +204,5 @@
 
   (storage/category-path "movies/kids" "kids")
   (jdbc/execute! prod-db ["SELECT * FROM movie"])
+
   )

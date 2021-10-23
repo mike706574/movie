@@ -1,58 +1,24 @@
-(ns movie.frontend.nav)
+(ns movie.frontend.nav
+  (:require [movie.frontend.util :as util]))
 
-(defn page-link [label f]
-  [:li.page-item
-   {:key label}
-   [:a.page-link
-    {:style {"cursor" "pointer"
-             "color" "#0275d8"}
-     :on-click f}
-    label]])
+(defn link [{:keys [key label disabled active on-click]}]
+  (if active
+    [:li.page-item.active
+     {:key key}
+     [:span.page-link label]]
+    [:li.page-item
+     {:key key
+      :classes (util/classes ["page-item" ["disabled" disabled]])}
+     [:a.page-link
+      {:style (if disabled {} {"cursor" "pointer"})
+       :on-click (when-not disabled on-click)}
+      label]]))
 
-(defn previous-link [f]
-  [:li.page-item
-   {:key "previous"}
-   [:a.page-link
-    {:aria-label "Previous"
-     :style {"cursor" "pointer"
-             "color" "#0275d8"}
-     :on-click f}
-    [:span {:aria-hidden "true"} "«"]]])
+(defn previous-link [props]
+  (link (merge {:key "previous" :label "‹"} props)))
 
-(defn disabled-previous-link []
-  [:li.page-item.disabled
-   {:key "previous"}
-   [:a.page-link
-    {:aria-label "Previous"
-     :style {"cursor" "pointer"
-             "color" "#0275d8"}}
-    [:span {:aria-hidden "true"} "«"]]])
+(defn next-link [props]
+  (link (merge {:key "next" :label "›"} props)))
 
-(defn next-link [f]
-  [:li.page-item
-   {:key "next"}
-   [:a.page-link
-    {:aria-label "Next"
-     :style {"cursor" "pointer"
-             "color" "#0275d8"}
-     :on-click f}
-    [:span {:aria-hidden "true"} "»"]]])
-
-(defn disabled-next-link []
-  [:li.page-item.disabled
-   {:key "next"}
-   [:a.page-link
-    {:aria-label "Next"
-     :style {"cursor" "pointer"
-             "color" "#0275d8"}}
-    [:span {:aria-hidden "true"} "»"]]])
-
-(defn disabled-page-link [label]
-  [:li.page-item.disabled
-   {:key label}
-   [:span.page-link label]])
-
-(defn active-page-link [label]
-  [:li.page-item.active
-   {:key label}
-   [:span.page-link label]])
+(defn last-link [props]
+  (link (merge {:key "last" :label "»"} props)))

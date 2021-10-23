@@ -92,31 +92,45 @@
           (when num
             (get (vec movies) (dec num))))))))
 
-(defn sync-movies! [{:keys [sources client tmdb]}]
-  (let [raw-movies (mapcat
-                    (fn [{:keys [kind path category] :as source}]
-                      (log/info "Reading movies from source" source)
-                      (let [movies (case kind
-                                     "root-dir" (storage/read-root-dir path)
-                                     "category-dir" (storage/read-category-dir path category)
-                                     (throw (ex-info "Invalid source kind" {:kind kind})))]
-                        (log/info "Read movies from source" (assoc source :count (count movies)))
-                        movies))
-                    sources)
-        movies (map
-                (fn [movie]
-                  (let [{:keys [path title tmdb-id uuid]} movie]
-                    (if tmdb-id
-                      movie
-                      (do (println title "-" path)
-                          (if-let [info (resolve-movie-info tmdb title)]
-                            (let [uuid (if uuid uuid (rand-uuid))
-                                  metadata (assoc info :uuid uuid)]
-                              (println "Writing metadata.")
-                              (storage/write-metadata! path metadata)
-                              (merge movie metadata))
-                            (println "Not writing metadata."))
-                        ))))
-                raw-movies)]
+(defn- read-source [{:keys [kind path category] :as source}]
+  (log/info "Reading movies from source" source)
+  (let [movies (case kind
+                 "root-dir" (storage/read-root-dir path)
+                 "category-dir" (storage/read-category-dir path category)
+                 (throw (ex-info "Invalid source kind" {:kind kind})))]
+    (log/info "Read movies from source" (assoc source :count (count movies)))
+    movies))
+
+(defn- resolve-movie! [{:keys [tmdb]} movie]
+  (let [{:keys [path title tmdb-id uuid]} movie]
+    (if tmdb-id
+      movie
+      (do (println title "-" path)
+          (if-let [info (resolve-movie-info tmdb title)]
+            (let [uuid (if uuid uuid (rand-uuid))
+                  metadata (assoc info :uuid uuid)]
+              (println "Writing metadata.")
+              (storage/write-metadata! path metadata)
+              (merge movie metadata))
+            (println "Not writing metadata."))))))
+
+(defn- seed-movie! [movie]
+  (let [{:keys [path uuid]} movie]
+    (if uuid
+      movie
+      (let [uuid (rand-uuid)
+            metadata {:uuid uuid}]
+        (println "Writing metadata.")
+        (storage/write-metadata! path metadata)
+        (merge movie metadata)))))
+
+(defn sync-movies! [{:keys [sources client tmdb] :as deps}]
+  (let [raw-movies (mapcat read-source sources)
+        movies (map (partial resolve-movie! deps) raw-movies)]
     (println "Syncing" (count movies) "movies.")
+    (client/sync-movies! client movies)))
+
+(defn seed-movies! [{:keys [sources client]}]
+  (let [raw-movies (mapcat read-source sources)
+        movies (map seed-movie! raw-movies)]
     (client/sync-movies! client movies)))

@@ -146,16 +146,6 @@
 
 ;; Movie pagination
 (rf/reg-event-db
- :next-page
- (fn [db _]
-  (update db :page-number inc)))
-
-(rf/reg-event-db
- :previous-page
- (fn [db _]
-   (update db :page-number dec)))
-
-(rf/reg-event-db
  :to-page
  (fn [db [_ page-number]]
    (assoc db :page-number page-number)))
@@ -326,15 +316,19 @@
             [before-previous previous] (alphabet/take-before 2 defaulted-letter)
             [next after-next] (alphabet/take-after 2 defaulted-letter)]
         [:ul.pagination
-         (nav/previous-link #(rf/dispatch [:to-category previous]))
-         (nav/page-link (str/capitalize before-previous) #(rf/dispatch [:to-category before-previous]))
-         (nav/page-link (str/capitalize previous) #(rf/dispatch [:to-category previous]))
-         (if letter
-           (nav/active-page-link (str/capitalize letter))
-           (nav/page-link (str/capitalize defaulted-letter) #(rf/dispatch [:to-category defaulted-letter])))
-         (nav/page-link (str/capitalize next) #(rf/dispatch [:to-category next]))
-         (nav/page-link (str/capitalize after-next) #(rf/dispatch [:to-category after-next]))
-         (nav/next-link #(rf/dispatch [:to-category next]))])]
+         [nav/previous-link {:on-click #(rf/dispatch [:to-category previous])}]
+         [nav/link {:label (str/capitalize before-previous)
+                    :on-click #(rf/dispatch [:to-category before-previous])}]
+         [nav/link {:label (str/capitalize previous)
+                    :on-click #(rf/dispatch [:to-category previous])}]
+         [nav/link {:active letter
+                    :label (str/capitalize defaulted-letter)
+                    :on-click #(rf/dispatch [:to-category defaulted-letter])}]
+         [nav/link {:label (str/capitalize next)
+                    :on-click #(rf/dispatch [:to-category next])}]
+         [nav/link {:label (str/capitalize after-next)
+                    :on-click #(rf/dispatch [:to-category after-next])}]
+         [nav/next-link {:on-click #(rf/dispatch [:to-category next])}]])]
      [:div.col-sm-auto
       [:a.page-link
        {:aria-label "Kids"
@@ -351,20 +345,61 @@
         :on-click (when-not kids? #(rf/dispatch [:to-category "kids"]))}
        [:span {:aria-hidden "true"} "Kids"]]]]))
 
+(defn page-range [page-number page-count]
+  (let [lo (max 1 (dec page-number))
+        hi (min page-count (inc page-number))
+        left (if (= 1 lo) [] [nil])
+        right (if (= page-count hi) [] [nil])]
+    (concat left (range lo (inc hi)) right)))
+
+(defn page-number-elements [page-count page-number]
+  (loop [elements [page-number]
+         distance 1]
+    (if (= 5 (count elements))
+      elements
+      (let [left (- page-number distance)
+            with-left (if (< left 1)
+                        elements
+                        (vec (cons left elements)))
+            right (+ page-number distance)
+            with-right (if (> right page-count)
+                         with-left
+                         (conj with-left right))]
+        (if (= (count elements) (count with-right))
+          elements
+          (recur with-right (inc distance)))))))
+
+(defn page-elements [page-count page-number]
+  (let [elements (page-number-elements page-count page-number)
+        elements (if (> (first elements) 1)
+                   (assoc elements 0 nil)
+                   elements)
+        last-idx (dec (count elements))
+        elements (if (< (nth elements last-idx) page-count)
+                   (assoc elements last-idx nil)
+                   elements)]
+    elements))
+
 (defn movie-pagination []
   (let [{:keys [page-number page-count filtered-movie-count]} @(rf/subscribe [:page])]
     (when-not (zero? filtered-movie-count)
       [:ul.pagination
-       (if (= 1 page-number)
-         (nav/disabled-previous-link)
-         (nav/previous-link #(rf/dispatch [:previous-page])))
-       (for [index (range 1 (inc page-count))]
-         (if (= index page-number)
-           (nav/active-page-link index)
-           (nav/page-link index #(rf/dispatch [:to-page index]))))
-       (if (= page-number page-count)
-         (nav/disabled-next-link)
-         (nav/next-link #(rf/dispatch [:next-page])))])))
+       [nav/link {:label "«"
+                  :key "first"
+                  :on-click #(rf/dispatch [:to-page 1])
+                  :disabled (= 1 page-number)}]
+       [nav/previous-link {:on-click #(rf/dispatch [:to-page (dec page-number)])
+                           :disabled (= 1 page-number)}]
+       (for [[key page] (map-indexed vector (page-elements page-count page-number))]
+         [nav/link {:key key
+                    :label (if page page "...")
+                    :active (= page page-number)
+                    :disabled (not page)
+                    :on-click #(rf/dispatch [:to-page page])}])
+       [nav/next-link {:on-click #(rf/dispatch [:to-page (inc page-number)])
+                       :disabled (= page-number page-count)}]
+       [nav/last-link {:on-click #(rf/dispatch [:to-page page-count])
+                       :disabled (= page-count page-number)}]])))
 
 (defn ellipsis [length string]
   (if (> (count string) length)
@@ -384,7 +419,7 @@
                      tmdb-backdrop-path
                      release-date] :as movie} movies]
          [:div.col {:key uuid}
-          [:div.card.mb-3
+          [:div.card
            [:a {:href (routing/href :movie {:uuid uuid})
                 :style {"textDecoration" "none"
                         "color" "#000"}}
@@ -564,8 +599,6 @@
            :disabled disabled?
            :on-click #(rf/dispatch [:login params])}
           "Submit"]]))))
-
-
 
 (defn app []
   (let [{:keys [loading error account]} @(rf/subscribe [:state])
