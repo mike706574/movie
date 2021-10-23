@@ -333,7 +333,8 @@
       [:a.page-link
        {:aria-label "Kids"
         :style (merge {"cursor" "pointer"
-                       "color" "#0275d8"}
+                       "color" "#0275d8"
+                       "marginBottom" "1rem"}
                       (when kids?
                         {"zIndex" "3"
                          "color" "#fff"
@@ -342,7 +343,7 @@
         :class (if kids?
                  "active"
                  "disabled")
-        :on-click (when-not kids? #(rf/dispatch [:to-category "kids"]))}
+        :on-click #(rf/dispatch [:to-category (if kids? nil "kids")])}
        [:span {:aria-hidden "true"} "Kids"]]]]))
 
 (defn page-range [page-number page-count]
