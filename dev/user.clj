@@ -134,9 +134,17 @@
 (comment
   ;; tmdb
   (tmdb/get-config tmdb)
-  (-> (tmdb/get-movie tmdb 10020) :body keys set)
+  (-> (tmdb/get-movie tmdb 185) :body keys set)
 
-  (->> (tmdb/search-movies tmdb "Vagabond" {:limit 50}))
+  (->> (tmdb/search-movies tmdb "A Clockwork Orange" {:page 1}))
+
+  (->> (tmdb/search-people tmdb "Kubrick"))
+
+  (tmdb/search-people tmdb "Kubrick")
+
+  (tmdb/search-people tmdb "Kubrick" {:page 1})
+
+  (tmdb/get-person tmdb 240)
 
   (tmdb/get-movie tmdb 10020)
 

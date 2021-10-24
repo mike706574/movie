@@ -15,7 +15,8 @@
                                        :cols account-fields})))
 
 (defn list-accounts [db]
-  (db/select-items db :account {:cols account-fields}))
+  (db/select-items db :account {:cols account-fields
+                                :order-by [:email]}))
 
 (defn get-movie-id [db uuid]
   (:movie-id (get-movie db {:uuid uuid})))
@@ -30,11 +31,12 @@
   (db/insert-item! db :account account))
 
 (defn list-movies [db]
-  (db/select-items db :movie-view))
+  (db/select-items db :movie-view {:order-by [:title]}))
 
 (defn list-account-movies [db email]
   (let [account-id (get-account-id db email)]
-    (db/select-items db :account-movie-view {:keys {:account-id account-id}})))
+    (db/select-items db :account-movie-view {:keys {:account-id account-id}
+                                             :order-by [:title]})))
 
 (defn get-account-movie [db email keys]
   (let [account-id (get-account-id db email)

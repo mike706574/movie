@@ -146,7 +146,6 @@ WHERE tc.constraint_type = 'PRIMARY KEY' AND kcu.table_schema !~ '^pg_' AND kcu.
                      :pk-column (get pk-column-lookup table-key)))))
          set)))
 
-;; TODO: Document
 (defn- dashed [x] (keyword (str/replace (name x) #"_" "-")))
 (defn- underscored [x] (keyword (str/replace (name x) #"-" "_")))
 
@@ -156,10 +155,11 @@ WHERE tc.constraint_type = 'PRIMARY KEY' AND kcu.table_schema !~ '^pg_' AND kcu.
 (defn select-items
   ([db table]
    (select-items db table {}))
-  ([db table {:keys [keys cols]}]
+  ([db table {:keys [keys cols order-by]}]
    (let [mapper #(update-keys % dashed)
          rows (let [key-map (if keys (adjust-keys keys) :all)]
-                (sql/find-by-keys db (underscored table) key-map {:cols (map underscored cols)}))]
+                (sql/find-by-keys db (underscored table) key-map {:cols (map underscored cols)
+                                                                  :order-by order-by}))]
      (map mapper rows))))
 
 (defn select-first-item

@@ -474,7 +474,7 @@
       [:div.col-md-8
        [:section
         [:h6 "Overview"]
-        [:blockquote.blockquote overview]]
+        [:blockquote.blockquote (or overview "No overview available.")]]
        [:section.mb-3
         [:h6 "Rating"]
         (when account
@@ -643,6 +643,10 @@
    [:nav
     [movie-pagination]]])
 
+(defn search-page []
+  [:<>
+   [:p "This is where you search."]])
+
 ;; -- Routes --
 
 (def routes
@@ -656,6 +660,13 @@
                 (rf/dispatch [:fetch-movies]))
        :stop (fn []
                (println "Leaving home page"))}]}]
+
+   ["search"
+    {:name :search
+     :view search-page
+     :controllers
+     [{:start (fn [] (println "Entering search page"))
+       :stop (fn [] (println "Leaving search page"))}]}]
 
    ["register"
     {:name :register
