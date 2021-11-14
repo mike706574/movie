@@ -1,5 +1,6 @@
 (ns movie.backend.repo
-  (:require [movie.backend.db :as db]))
+  (:require [movie.backend.db :as db]
+            [next.jdbc :as jdbc]))
 
 (defn get-movie [db keys]
   (first (db/select-items db :movie-view {:keys keys})))
@@ -67,11 +68,17 @@
 (defn update-movies! [db movies]
   (db/update-items! db :movie :uuid movie-fields movies))
 
-(defn rate-movie! [db uuid email rating]
+(defn- update-account-movie! [db uuid email watched rating]
   (let [movie-id (get-movie-id db uuid)
         account-id (get-account-id db email)]
-    (db/deactivate-item! db :movie-rating {:movie-id movie-id :account-id account-id})
-    (db/insert-item! db :movie-rating {:movie-id movie-id :account-id account-id :rating rating})))
+    (db/deactivate-item! db :account-movie {:movie-id movie-id :account-id account-id})
+    (db/insert-item! db :account-movie {:movie-id movie-id :account-id account-id :watched watched :rating rating})))
+
+(defn watch-movie! [db uuid email watched]
+  (update-account-movie! db uuid email watched nil))
+
+(defn rate-movie! [db uuid email rating]
+  (update-account-movie! db uuid email true rating))
 
 (defn sync-movies! [db movies]
   (let [stored-movies (list-movies db)

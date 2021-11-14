@@ -149,6 +149,7 @@
   (tmdb/get-movie tmdb 10020)
 
   ;; db
+  (db/migrate db)
   (db/rollback db)
   (db/collect-tables db)
   (db/migrations db)

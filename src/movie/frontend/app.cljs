@@ -260,14 +260,17 @@
 (defn serialize-rating [rating] (if rating (str rating) ""))
 
 (defn rating-form [{:keys [uuid rating]}]
-  (let [rating-atom (r/atom (serialize-rating rating))]
+  (let [rating-atom (r/atom (serialize-rating rating))
+        dirty-atom (r/atom false)]
     (fn []
       (let [value @rating-atom
             none? (= value "")
             changed? (not= (serialize-rating rating) value)
             valid? (or none? (boolean (re-matches #"^(10|10.0|[0-9](\.[0-9])?)$" value)))
-            disabled? (or (not valid?) (not changed?))
-            on-click (when-not disabled? #(rf/dispatch [:rate-movie uuid (js/parseFloat value)]))]
+            disabled? (or (not @dirty-atom) (not valid?) (not changed?))
+            on-click (when-not disabled? #(do
+                                            (rf/dispatch [:rate-movie uuid (js/parseFloat value)])
+                                            (reset! dirty-atom false)))]
         [:div.input-group
          [:input {:type "text"
                   :value value
@@ -275,7 +278,8 @@
                   :step "0.1"
                   :min "0"
                   :max "10"
-                  :on-change #(reset! rating-atom (-> % .-target .-value))}]
+                  :on-change #(do (reset! rating-atom (-> % .-target .-value))
+                                  (reset! dirty-atom true))}]
          [:button.btn.btn-primary {:disabled disabled?
                                    :class (util/classes ["btn" (str "btn-" (if valid? "primary" "danger"))])
                                    :on-click on-click}
@@ -418,7 +422,8 @@
                      uuid
                      overview
                      tmdb-backdrop-path
-                     release-date] :as movie} movies]
+                     release-date
+                     watched] :as movie} movies]
          [:div.col {:key uuid}
           [:div.card
            [:a {:href (routing/href :movie {:uuid uuid})
