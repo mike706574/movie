@@ -41,7 +41,7 @@ WHERE m.active;
 --;;
 CREATE VIEW account_movie_view AS
 SELECT a.account_id,
-       am.watched,
+       coalesce(am.watched, false) AS watched,
        am.rating,
        m.*
 FROM account a

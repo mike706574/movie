@@ -28,6 +28,26 @@ lein repl
 
 ## TODO
 
+Connect to local database:
+
 ```
-psql -d postgres -U postgres -h localhost -p 7601
+PGPASSWORD=postgres psql -h localhost -p 7601 -d postgres -U postgres
+```
+
+Connect to production database:
+
+```
+PGPASSWORD=$MOVIE_DB_PASSWORD psql -h $MOVIE_DB_HOST -d $MOVIE_DB_NAME -U $MOVIE_DB_USER
+```
+
+Dump production database:
+
+```
+pg_dump -h $MOVIE_DB_HOST -U $MOVIE_DB_USER -W -F t --no-owner --no-acl $MOVIE_DB_NAME > movie.tar
+```
+
+Restore production database over local database:
+
+```
+pg_restore -h localhost -d postgres -U postgres -p 7601 -c -W movie.tar
 ```

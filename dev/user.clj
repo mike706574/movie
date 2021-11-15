@@ -178,6 +178,10 @@
 
   (repo/list-movies db)
 
+  (repo/get-account-movie db "mike" {:uuid "61fdf65c-a36a-40cf-b24c-6c8d43c1bdc9"})
+
+  (repo/get-account-movie db "mike" )
+
   ;; client
   (client/get-accounts client)
   (client/list-movies client)
@@ -187,9 +191,7 @@
   (core/sync-movies! deps)
   (core/list-movies deps)
 
-
   )
-
 
 
 (def prod-db

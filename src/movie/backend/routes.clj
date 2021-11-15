@@ -77,14 +77,20 @@
 
                       :post {:middleware [mw/auth-required]
                              :parameters {:body [:map {:closed true}
+                                                 [:watched boolean?]
                                                  [:rating [:maybe float?]]]
                                           :path uuid-params}
                              :responses {200 {:body any?}}
                              :handler (fn [{{model :body {uuid :uuid} :path} :parameters
                                             {email :email} :identity}]
-                                        (let [{rating :rating} model]
-                                          (repo/rate-movie! db uuid email rating)
-                                          {:status 200 :body {:rating rating}}))}}]
+                                        (let [{rating :rating watched :watched} model]
+                                          (println model)
+                                          (if (and (not watched) (not (nil? rating)))
+                                            {:status 400 :body {:message "A rating cannot be provided for an unwatched movie."}}
+                                            (do
+                                              (repo/update-account-movie! db uuid email watched rating)
+                                              {:status 200 :body {:rating rating
+                                                                  :watched watched}}))))}}]
 
     ["/tmdb/search" {:get {:parameters {:query [:map [:title string?]]}
                            :responses {200 {:body any?}}

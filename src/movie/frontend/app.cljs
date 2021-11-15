@@ -126,23 +126,28 @@
  (fn [_ [_ uuid]]
    {:http-xhrio (movie-request uuid)}))
 
+(defn update-movie [new-movie movie]
+  (if (= (:uuid movie) (:uuid new-movie))
+    new-movie
+    movie))
+
 (rf/reg-event-db
  :process-movie
  (fn [db [_ response]]
-   (assoc db :loading false :movie (js->clj response))))
+   (let [movie (js->clj response)
+         movies (map (partial update-movie movie) (:movies db))]
+     (assoc db :loading false :movie movie :movies movies))))
 
-;; Getting accounts
-
-;; Rating a movie
-(defn rate-movie-request [uuid rating]
+;; Updating a movie
+(defn update-movie-request [uuid watched rating]
   (req/post-json-request {:uri (str "/api/movies/" uuid)
-                          :params {:rating rating}
+                          :params {:watched watched :rating rating}
                           :on-success [:refresh-movie uuid]}))
 
 (rf/reg-event-fx
- :rate-movie
- (fn [_ [_ uuid rating]]
-   {:http-xhrio (rate-movie-request uuid rating)}))
+ :update-movie
+ (fn [_ [_ uuid watched rating]]
+   {:http-xhrio (update-movie-request uuid watched rating)}))
 
 ;; Movie pagination
 (rf/reg-event-db
@@ -259,31 +264,38 @@
 ;; Rating
 (defn serialize-rating [rating] (if rating (str rating) ""))
 
-(defn rating-form [{:keys [uuid rating]}]
+(defn rating-form [{:keys [rating]}]
   (let [rating-atom (r/atom (serialize-rating rating))
         dirty-atom (r/atom false)]
-    (fn []
+    (fn [{:keys [uuid watched rating] :as movie}]
       (let [value @rating-atom
             none? (= value "")
             changed? (not= (serialize-rating rating) value)
             valid? (or none? (boolean (re-matches #"^(10|10.0|[0-9](\.[0-9])?)$" value)))
             disabled? (or (not @dirty-atom) (not valid?) (not changed?))
             on-click (when-not disabled? #(do
-                                            (rf/dispatch [:rate-movie uuid (js/parseFloat value)])
+                                            (rf/dispatch [:update-movie uuid true (js/parseFloat value)])
                                             (reset! dirty-atom false)))]
-        [:div.input-group
-         [:input {:type "text"
-                  :value value
-                  :class (util/classes ["form-control" ["is-invalid" (not valid?)]])
-                  :step "0.1"
-                  :min "0"
-                  :max "10"
-                  :on-change #(do (reset! rating-atom (-> % .-target .-value))
-                                  (reset! dirty-atom true))}]
-         [:button.btn.btn-primary {:disabled disabled?
-                                   :class (util/classes ["btn" (str "btn-" (if valid? "primary" "danger"))])
-                                   :on-click on-click}
-          "Rate"]]))))
+        (if watched
+         [:div.input-group
+          [:button.btn.btn-primary
+           {:on-click #(rf/dispatch [:update-movie uuid false nil])}
+           "Watched"]
+          [:input {:type "text"
+                   :value value
+                   :class (util/classes ["form-control" ["is-invalid" (not valid?)]])
+                   :step "0.1"
+                   :min "0"
+                   :max "10"
+                   :on-change #(do (reset! rating-atom (-> % .-target .-value))
+                                   (reset! dirty-atom true))}]
+          [:button {:disabled disabled?
+                    :class (util/classes ["btn" (str "btn-" (if valid? "primary" "danger"))])
+                    :on-click on-click}
+           "Rate"]]
+         [:button.btn.btn-secondary
+          {:on-click #(rf/dispatch [:update-movie uuid true nil])}
+          "Unwatched"])))))
 
 
 (defn movie-item [{:keys [movie-path]}]
