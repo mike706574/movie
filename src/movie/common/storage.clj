@@ -117,6 +117,7 @@
     []))
 
 (defn read-category-dir [path category]
+  (log/info "Reading movies from category directory" path)
   (->> (category-movie-dirs path category)
        (map read-movie-dir)))
 

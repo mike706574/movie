@@ -47,7 +47,7 @@
 
 (defn search-tmdb-movies
   [tmdb title]
-  (let [{:keys [status body] :as response} (tmdb/search-movies tmdb title {:limit 50})]
+  (let [{:keys [status body] :as response} (tmdb/search-movies tmdb title {:limit 200})]
     (if-not (= status :ok)
       {:status :error :body response}
       (->> body
