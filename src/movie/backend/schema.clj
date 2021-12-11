@@ -31,6 +31,7 @@
     (mu/union
      [:map
       [:uuid string?]
+      [:owned {:optional true} [:maybe boolean?]]
       [:watched {:optional true} [:maybe boolean?]]
       [:rating {:optional true} [:maybe decimal?]]
       [:average-rating {:optional true} [:maybe decimal?]]]

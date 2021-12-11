@@ -68,20 +68,19 @@
 (defn update-movies! [db movies]
   (db/update-items! db :movie :uuid movie-fields movies))
 
-(defn update-account-movie! [db uuid email watched rating]
-  (let [movie-id (get-movie-id db uuid)
-        account-id (get-account-id db email)]
-    (db/deactivate-item! db :account-movie {:movie-id movie-id :account-id account-id})
-    (db/insert-item! db :account-movie {:movie-id movie-id
-                                        :account-id account-id
-                                        :watched watched
-                                        :rating rating})))
-
-(defn watch-movie! [db uuid email watched]
-  (update-account-movie! db uuid email watched nil))
+(defn update-account-movie! [db uuid email fields]
+  (jdbc/with-transaction [tx db]
+    (let [movie-id (get-movie-id db uuid)
+          account-id (get-account-id db email)]
+      (db/deactivate-item! tx :account-movie {:movie-id movie-id :account-id account-id})
+      (db/insert-item! tx :account-movie (merge {:movie-id movie-id
+                                                 :account-id account-id}
+                                                fields)))))
 
 (defn rate-movie! [db uuid email rating]
-  (update-account-movie! db uuid email true rating))
+  (jdbc/with-transaction [tx db]
+    (let [{:keys [owned]} (get-account-movie db email {:uuid uuid})]
+      (update-account-movie! db uuid email {:owned owned :watched true :rating rating}))))
 
 (defn sync-movies! [db movies]
   (let [stored-movies (list-movies db)

@@ -77,18 +77,18 @@
 
                       :post {:middleware [mw/auth-required]
                              :parameters {:body [:map {:closed true}
+                                                 [:owned boolean?]
                                                  [:watched boolean?]
-                                                 [:rating [:maybe float?]]]
+                                                 [:rating [:maybe number?]]]
                                           :path uuid-params}
                              :responses {200 {:body any?}}
                              :handler (fn [{{model :body {uuid :uuid} :path} :parameters
                                             {email :email} :identity}]
-                                        (let [{rating :rating watched :watched} model]
-                                          (println model)
+                                        (let [{owned :owned rating :rating watched :watched} model]
                                           (if (and (not watched) (not (nil? rating)))
                                             {:status 400 :body {:message "A rating cannot be provided for an unwatched movie."}}
                                             (do
-                                              (repo/update-account-movie! db uuid email watched rating)
+                                              (repo/update-account-movie! db uuid email {:owned owned :watched watched :rating rating})
                                               {:status 200 :body {:rating rating
                                                                   :watched watched}}))))}}]
 

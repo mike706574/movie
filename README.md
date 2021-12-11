@@ -51,3 +51,10 @@ Restore production database over local database:
 ```
 pg_restore -h localhost -d postgres -U postgres -p 7601 -c -W movie.tar
 ```
+
+Sync movies:
+
+```
+java -jar target/movie.jar -d /mnt/d/kids/movies/ -k category-dir -c kids -p $ADMIN_PASSWORD sync-movies
+java -jar target/movie.jar -d /mnt/d/adults/movies/ -k root-dir -p $ADMIN_PASSWORD sync-movies
+```

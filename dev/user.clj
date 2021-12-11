@@ -136,7 +136,8 @@
   (tmdb/get-config tmdb)
   (-> (tmdb/get-movie tmdb 185) :body keys set)
 
-  (->> (tmdb/search-movies tmdb "A Clockwork Orange" {:page 1}))
+  (->> (tmdb/search-movies tmdb "Le Cercle Rouge")
+       :body)
 
   (->> (tmdb/search-people tmdb "Kubrick"))
 
@@ -155,6 +156,8 @@
   (db/migrations db)
   (db/reset db)
 
+  (jdbc/execute! db ["SELECT * FROM schema_migrations"])
+
   ;; storage
   (storage/mock-movie-dirs! test-dir test-movies)
   (storage/mock-movie! test-dir new-test-movie)
@@ -163,6 +166,7 @@
   (storage/read-root-dir "movies/adults")
 
   ;; repo
+  (repo/list-account-movies db "mike")
   (repo/get-account-with-password db {:email "mike"})
   (repo/get-account db {:email "mike"})
   (repo/clear-movies! db)
@@ -214,6 +218,6 @@
   (db/reset prod-db)
 
   (storage/category-path "movies/kids" "kids")
-  (jdbc/execute! prod-db ["SELECT * FROM movie"])
+  (jdbc/execute! prod-db ["SELECT * FROM schema_migrations"])
 
   )

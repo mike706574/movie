@@ -15,6 +15,27 @@
 ;; -- Development
 (enable-console-print!)
 
+;; -- Icons
+(def bag-icon
+  [:svg {:xmlns "http://www.w3.org/2000/svg", :width "16", :height "16", :fill "currentColor", :class "bi bi-bag", :viewBox "0 0 16 16"}
+   [:path {:d "M8 1a2.5 2.5 0 0 1 2.5 2.5V4h-5v-.5A2.5 2.5 0 0 1 8 1zm3.5 3v-.5a3.5 3.5 0 1 0-7 0V4H1v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V4h-3.5zM2 5h12v9a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V5z"}]])
+
+(def bag-check-icon
+  [:svg {:xmlns "http://www.w3.org/2000/svg", :width "16", :height "16", :fill "currentColor", :class "bi bi-bag-check", :viewBox "0 0 16 16"}
+   [:path {:fill-rule "evenodd", :d "M10.854 8.146a.5.5 0 0 1 0 .708l-3 3a.5.5 0 0 1-.708 0l-1.5-1.5a.5.5 0 0 1 .708-.708L7.5 10.793l2.646-2.647a.5.5 0 0 1 .708 0z"}]
+   [:path {:d "M8 1a2.5 2.5 0 0 1 2.5 2.5V4h-5v-.5A2.5 2.5 0 0 1 8 1zm3.5 3v-.5a3.5 3.5 0 1 0-7 0V4H1v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V4h-3.5zM2 5h12v9a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V5z"}]])
+
+(def eye-icon
+  [:svg {:xmlns "http://www.w3.org/2000/svg", :width "16", :height "16", :fill "currentColor", :class "bi bi-eye", :viewBox "0 0 16 16"}
+   [:path {:d "M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8zM1.173 8a13.133 13.133 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.133 13.133 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5c-2.12 0-3.879-1.168-5.168-2.457A13.134 13.134 0 0 1 1.172 8z"}]
+   [:path {:d "M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0z"}]])
+
+(def eye-slash-icon
+  [:svg {:xmlns "http://www.w3.org/2000/svg", :width "16", :height "16", :fill "currentColor", :class "bi bi-eye-slash", :viewBox "0 0 16 16"}
+   [:path {:d "M13.359 11.238C15.06 9.72 16 8 16 8s-3-5.5-8-5.5a7.028 7.028 0 0 0-2.79.588l.77.771A5.944 5.944 0 0 1 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.134 13.134 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755-.165.165-.337.328-.517.486l.708.709z"}]
+   [:path {:d "M11.297 9.176a3.5 3.5 0 0 0-4.474-4.474l.823.823a2.5 2.5 0 0 1 2.829 2.829l.822.822zm-2.943 1.299.822.822a3.5 3.5 0 0 1-4.474-4.474l.823.823a2.5 2.5 0 0 0 2.829 2.829z"}]
+   [:path {:d "M3.35 5.47c-.18.16-.353.322-.518.487A13.134 13.134 0 0 0 1.172 8l.195.288c.335.48.83 1.12 1.465 1.755C4.121 11.332 5.881 12.5 8 12.5c.716 0 1.39-.133 2.02-.36l.77.772A7.029 7.029 0 0 1 8 13.5C3 13.5 0 8 0 8s.939-1.721 2.641-3.238l.708.709zm10.296 8.884-12-12 .708-.708 12 12-.708.708z"}]])
+
 ;; -- Event Handlers --
 
 (rf/reg-event-db
@@ -139,15 +160,15 @@
      (assoc db :loading false :movie movie :movies movies))))
 
 ;; Updating a movie
-(defn update-movie-request [uuid watched rating]
+(defn update-movie-request [uuid params]
   (req/post-json-request {:uri (str "/api/movies/" uuid)
-                          :params {:watched watched :rating rating}
+                          :params params
                           :on-success [:refresh-movie uuid]}))
 
 (rf/reg-event-fx
  :update-movie
- (fn [_ [_ uuid watched rating]]
-   {:http-xhrio (update-movie-request uuid watched rating)}))
+ (fn [_ [_ uuid fields]]
+   {:http-xhrio (update-movie-request uuid fields)}))
 
 ;; Movie pagination
 (rf/reg-event-db
@@ -264,39 +285,50 @@
 ;; Rating
 (defn serialize-rating [rating] (if rating (str rating) ""))
 
+(defn valid-rating? [value]
+  (or (= value "") (boolean (re-matches #"^(10|10.0|[0-9](\.[0-9])?)$" value))))
+
 (defn rating-form [{:keys [rating]}]
-  (let [rating-atom (r/atom (serialize-rating rating))
-        dirty-atom (r/atom false)]
-    (fn [{:keys [uuid watched rating] :as movie}]
+  (let [rating-atom (r/atom (serialize-rating rating))]
+    (fn [{:keys [uuid owned watched rating] :as movie}]
       (let [value @rating-atom
-            none? (= value "")
-            changed? (not= (serialize-rating rating) value)
-            valid? (or none? (boolean (re-matches #"^(10|10.0|[0-9](\.[0-9])?)$" value)))
-            disabled? (or (not @dirty-atom) (not valid?) (not changed?))
-            on-click (when-not disabled? #(do
-                                            (rf/dispatch [:update-movie uuid true (js/parseFloat value)])
-                                            (reset! dirty-atom false)))]
-        (if watched
-         [:div.input-group
+            valid? (valid-rating? value)]
+        [:<>
+         [:div.col-auto
           [:button.btn.btn-primary
-           {:on-click #(rf/dispatch [:update-movie uuid false nil])}
-           "Watched"]
+           {:class (util/classes ["btn" (if watched "btn-primary" "btn-secondary")])
+            :on-click (if watched
+                        #(do (rf/dispatch [:update-movie uuid {:owned owned :watched false :rating nil}])
+                             (reset! rating-atom ""))
+                        #(rf/dispatch [:update-movie uuid {:owned owned :watched true :rating nil}]))}
+           (if watched eye-icon eye-slash-icon)]]
+         [:div.col-auto
           [:input {:type "text"
                    :value value
                    :class (util/classes ["form-control" ["is-invalid" (not valid?)]])
                    :step "0.1"
                    :min "0"
                    :max "10"
-                   :on-change #(do (reset! rating-atom (-> % .-target .-value))
-                                   (reset! dirty-atom true))}]
-          [:button {:disabled disabled?
-                    :class (util/classes ["btn" (str "btn-" (if valid? "primary" "danger"))])
-                    :on-click on-click}
-           "Rate"]]
-         [:button.btn.btn-secondary
-          {:on-click #(rf/dispatch [:update-movie uuid true nil])}
-          "Unwatched"])))))
+                   :size "6"
+                   :placeholder "Unrated"
+                   :disabled (not watched)
+                   :on-change #(let [value (-> % .-target .-value)]
+                                 (reset! rating-atom value)
+                                 (when (valid-rating? value)
+                                   (rf/dispatch [:update-movie uuid {:owned owned :watched true :rating (js/parseFloat value)}])))}]]]
+))))
 
+(defn owned-form []
+  (fn [{:keys [uuid owned watched rating] :as movie}]
+    (if owned
+      [:div.col-auto
+       [:button.btn.btn-primary
+        {:on-click #(rf/dispatch [:update-movie uuid {:owned false :watched watched :rating rating}])}
+        bag-check-icon]]
+      [:div.col-auto
+       [:button.btn.btn-secondary
+        {:on-click #(rf/dispatch [:update-movie uuid {:owned true :watched watched :rating rating}])}
+        bag-icon]])))
 
 (defn movie-item [{:keys [movie-path]}]
   [:li {:key movie-path} movie-path])
@@ -429,7 +461,7 @@
     (if (empty? movies)
       [:div.text-center.mt-5.mb-5
        [:h3 "No movies found."]]
-      [:div.row.row-cols-1.row-cols-md-3.g-4
+      [:div.row.row-cols-1.row-cols-md-3.g-4.mb-3
        (for [{:keys [title
                      uuid
                      overview
@@ -467,64 +499,78 @@
                             (ellipsis 150 overview)
                             "No overview available.")]
             (when account
-              [rating-form movie])]]])])))
+              [:div.row.g-1
+               [owned-form movie]
+               [rating-form movie]])]]])])))
 
 (defn movie-page []
-  (let [{:keys [average-rating category title overview tmdb-poster-path tmdb-id imdb-id release-date runtime uuid] :as movie} @(rf/subscribe [:movie])
+  (let [{:keys [average-rating category title overview tmdb-poster-path tmdb-id imdb-id release-date runtime uuid owned watched rating] :as movie} @(rf/subscribe [:movie])
         account @(rf/subscribe [:account])]
-    [:<>
-     [:p "This is a movie."]
-     [:h2 title]
-     [:div.row
-      [:div.col-md-4
-       (if tmdb-poster-path
-         [:img.img-fluid.mb-3
-          {:src (str "http://image.tmdb.org/t/p/w780" tmdb-poster-path)}]
-         [:div {:style {"backgroundColor" "#eee"
-                        "display" "flex"
-                        "height" "460px"
-                        "width" "100%"}}
-          [:h5 {:style {"alignSelf" "center"
-                        "textAlign" "center"
-                        "width" "100%"}}
-           title]])]
-      [:div.col-md-8
-       [:section
-        [:h6 "Overview"]
-        [:blockquote.blockquote (or overview "No overview available.")]]
-       [:section.mb-3
-        [:h6 "Rating"]
-        (when account
-          [rating-form movie])]
-       [:section.mb-3
-        [:h6 "Info"]
-        [:table.table.table-bordered
-         [:tbody
-          [:tr
-           [:th {:scope "row"} "Released"]
-           [:td (or release-date "Unknown")]]
-          [:tr
-           [:th {:scope "row"} "Runtime"]
-           [:td (or runtime "Unknown")]]
-          [:tr
-           [:th {:scope "row"} "Average Rating"]
-           [:td (or average-rating "Not rated")]]
-          [:tr
-           [:th {:scope "row"} "UUID"]
-           [:td uuid]]
-          [:tr
-           [:th {:scope "row"} "Category"]
-           [:td (str/capitalize category)]]
-          [:tr
-           [:th {:scope "row"} "Links"]
-           [:td
-            (when tmdb-id
-              [:a {:href (str "https://www.themoviedb.org/movie/" tmdb-id)
-                   :style {"marginRight" "0.5em"}}
-               "TMDB"])
-            (when imdb-id
-              [:a {:href (str "https://www.imdb.org/title/" imdb-id)}
-               "IMDB"])]]]]]]]]))
+    (when movie
+      [:<>
+       [:p "This is a movie."]
+       [:h2 title]
+       [:div.row
+        [:div.col-md-4
+         (if tmdb-poster-path
+           [:img.img-fluid.mb-3
+            {:src (str "http://image.tmdb.org/t/p/w780" tmdb-poster-path)}]
+           [:div {:style {"backgroundColor" "#eee"
+                          "display" "flex"
+                          "height" "460px"
+                          "width" "100%"}}
+            [:h5 {:style {"alignSelf" "center"
+                          "textAlign" "center"
+                          "width" "100%"}}
+             title]])]
+        [:div.col-md-8
+         [:section
+          [:h6 "Overview"]
+          [:blockquote.blockquote (or overview "No overview available.")]]
+         [:section.mb-3
+          [:h6 "Status"]
+          (when account
+            [:div.row.g-2
+             [owned-form movie]
+             [rating-form movie]])]
+         [:section.mb-3
+          [:h6 "Info"]
+          [:table.table.table-bordered
+           [:tbody
+            [:tr
+             [:th {:scope "row"} "Released"]
+             [:td (or release-date "Unknown")]]
+            [:tr
+             [:th {:scope "row"} "Runtime"]
+             [:td (or runtime "Unknown")]]
+            [:tr
+             [:th {:scope "row"} "Owned"]
+             [:td (if owned "Yes" "No")]]
+            [:tr
+             [:th {:scope "row"} "Watched"]
+             [:td (if watched "Yes" "No")]]
+            [:tr
+             [:th {:scope "row"} "Rating"]
+             [:td (or rating "Not rated")]]
+            [:tr
+             [:th {:scope "row"} "Average Rating"]
+             [:td (or average-rating "Not rated")]]
+            [:tr
+             [:th {:scope "row"} "UUID"]
+             [:td uuid]]
+            [:tr
+             [:th {:scope "row"} "Category"]
+             [:td (str/capitalize category)]]
+            [:tr
+             [:th {:scope "row"} "Links"]
+             [:td
+              (when tmdb-id
+                [:a {:href (str "https://www.themoviedb.org/movie/" tmdb-id)
+                     :style {"marginRight" "0.5em"}}
+                 "TMDB"])
+              (when imdb-id
+                [:a {:href (str "https://www.imdb.org/title/" imdb-id)}
+                 "IMDB"])]]]]]]]])))
 
 (defn register-page []
   (let [email-atom (r/atom "")
