@@ -7,6 +7,7 @@
             [com.stuartsierra.component :as component]
             [movie.common.client :as client]
             [movie.common.config :as config]
+            [movie.common.omdb :as omdb]
             [movie.common.storage :as storage]
             [movie.common.tmdb :as tmdb]
             [movie.backend.db :as db]
@@ -149,6 +150,12 @@
 
   (tmdb/get-movie tmdb 10020)
 
+  (def omdb-client (omdb/new-client {:type "api"
+                                     :url "http://www.omdbapi.com/"
+                                     :key "5547242"}))
+
+  (omdb/get-movie omdb-client "tt0101414")
+
   ;; db
   (db/migrate db)
   (db/rollback db)
@@ -186,6 +193,16 @@
 
   (repo/get-account-movie db "mike" )
 
+
+  (def movies (repo/list-account-movies prod-db "mike706574@gmail.com"))
+
+
+  (doseq [{:keys [uuid watched rating]} (->> movies
+                                             (filter (complement :owned)))]
+    (repo/update-account-movie! prod-db uuid "mike706574@gmail.com" {:owned true
+                                                                     :watched watched
+                                                                     :rating rating}))
+
   ;; client
   (client/get-accounts client)
   (client/list-movies client)
@@ -215,7 +232,8 @@
   (core/sync-movies! prod-deps)
   (repo/clear-movies! prod-db)
 
-  (db/reset prod-db)
+  (db/migrate prod-db)
+
 
   (storage/category-path "movies/kids" "kids")
   (jdbc/execute! prod-db ["SELECT * FROM schema_migrations"])

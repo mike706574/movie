@@ -48,6 +48,8 @@
            :error nil
            :page-number nil
            :category nil
+           :watched nil
+           :owned nil
            :movies nil
            :movie nil})))
 
@@ -182,6 +184,18 @@
  (fn [db [_ new-category]]
    (assoc db :category new-category :page-number 1)))
 
+;; Watched
+(rf/reg-event-db
+ :set-watched
+ (fn [db [_ new-watched]]
+   (assoc db :watched new-watched :page-number 1)))
+
+;; Owned
+(rf/reg-event-db
+ :set-owned
+ (fn [db [_ new-owned]]
+   (assoc db :owned new-owned :page-number 1)))
+
 ;; Movie filter
 (rf/reg-event-db
  :movie-filter-change
@@ -246,13 +260,25 @@
 (def page-size 12)
 
 (defn filter-movies
-  [{:keys [category movie-filter-text movies page-number]}]
-  (let [category-movies (if category
-                          (filter #(= (:category %) category) movies)
-                          movies)
-        filtered-movies (into [](if (str/blank? movie-filter-text)
-                                  category-movies
-                                  (filter #(util/includes-ignore-case? (:title %) movie-filter-text) category-movies)))
+  [{:keys [category owned watched movie-filter-text movies page-number]}]
+  (let [category-filter (if category
+                          #(= (:category %) category)
+                          (constantly true))
+        title-filter (if (str/blank? movie-filter-text)
+                       (constantly true)
+                       #(util/includes-ignore-case? (:title %) movie-filter-text))
+        watched-filter (if (nil? watched)
+                         (constantly true)
+                         #(= (:watched %) watched))
+        owned-filter (if (nil? owned)
+                       (constantly true)
+                       #(= (:owned %) owned))
+        filtered-movies (->> movies
+                             (filter category-filter)
+                             (filter title-filter)
+                             (filter watched-filter)
+                             (filter owned-filter)
+                             (into []))
         movie-count (count filtered-movies)
         page-count (max 1 (quot movie-count page-size))
         page-index (if page-number
@@ -279,6 +305,16 @@
   :category
   (fn [db _]
     (:category db)))
+
+(rf/reg-sub
+  :watched
+  (fn [db _]
+    (:watched db)))
+
+(rf/reg-sub
+  :owned
+  (fn [db _]
+    (:owned db)))
 
 ;; -- Views --
 
@@ -343,23 +379,52 @@
      :value @(rf/subscribe [:movie-filter-text])
      :on-change #(rf/dispatch [:movie-filter-change (-> % .-target .-value)])}]])
 
-(defn kids-select []
-  (let [category @(rf/subscribe [:category])
-        active? (= category "kids")]
+(defn value-select [{:keys [label on-change value target-value]}]
+  (let [active? (= target-value value)]
     [:a.page-link
-     {:aria-label "Kids"
-      :style {"cursor" "pointer"
-              "color" "#0275d8"}
-      :class (when-not active? "disabled")
-      :on-click (when active? #(rf/dispatch [:to-category "kids"]))}
-     [:span {:aria-hidden "true"} "Kids"]]))
+     {:aria-label label
+      :style (merge {"cursor" "pointer"
+                     "color" "#0275d8"
+                     "marginBottom" "1rem"}
+                    (when active?
+                      {"zIndex" "3"
+                       "color" "#fff"
+                       "backgroundColor" "#0d6efd"
+                       "borderColor" "#0d6efd"}))
+      :class (if active? "active" "disabled")
+      :on-click #(on-change (if active? nil target-value))}
+     [:span {:aria-hidden "true"} label]]))
+
+(defn watched-select []
+  (value-select {:label "Watched"
+                 :value @(rf/subscribe [:watched])
+                 :target-value true
+                 :on-change #(rf/dispatch [:set-watched %])}))
+
+(defn unwatched-select []
+  (value-select {:label "Unwatched"
+                 :value @(rf/subscribe [:watched])
+                 :target-value false
+                 :on-change #(rf/dispatch [:set-watched %])}))
+
+(defn owned-select []
+  (value-select {:label "Owned"
+                 :value @(rf/subscribe [:owned])
+                 :target-value true
+                 :on-change #(rf/dispatch [:set-owned %])}))
+
+(defn unowned-select []
+  (value-select {:label "Unowned"
+                 :value @(rf/subscribe [:owned])
+                 :target-value false
+                 :on-change #(rf/dispatch [:set-owned %])}))
 
 (defn movie-category-input []
   (let [category @(rf/subscribe [:category])
         kids? (= category "kids")
         letter (when (alphabet/alphabet-map category) category)]
     [:div.row
-     [:div.col-sm-auto
+     [:div.col-auto
       (let [defaulted-letter (or letter "a")
             [before-previous previous] (alphabet/take-before 2 defaulted-letter)
             [next after-next] (alphabet/take-after 2 defaulted-letter)]
@@ -377,22 +442,15 @@
          [nav/link {:label (str/capitalize after-next)
                     :on-click #(rf/dispatch [:to-category after-next])}]
          [nav/next-link {:on-click #(rf/dispatch [:to-category next])}]])]
-     [:div.col-sm-auto
-      [:a.page-link
-       {:aria-label "Kids"
-        :style (merge {"cursor" "pointer"
-                       "color" "#0275d8"
-                       "marginBottom" "1rem"}
-                      (when kids?
-                        {"zIndex" "3"
-                         "color" "#fff"
-                         "backgroundColor" "#0d6efd"
-                         "borderColor" "#0d6efd"}))
-        :class (if kids?
-                 "active"
-                 "disabled")
-        :on-click #(rf/dispatch [:to-category (if kids? nil "kids")])}
-       [:span {:aria-hidden "true"} "Kids"]]]]))
+     [:div.col-auto
+      [value-select {:label "Kids"
+                     :value category
+                     :target-value "kids"
+                     :on-change #(rf/dispatch [:to-category %])}]]
+     [:div.col-auto [owned-select]]
+     [:div.col-auto [unowned-select]]
+     [:div.col-auto [watched-select]]
+     [:div.col-auto [unwatched-select]]]))
 
 (defn page-range [page-number page-count]
   (let [lo (max 1 (dec page-number))

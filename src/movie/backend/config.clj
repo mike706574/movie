@@ -45,6 +45,8 @@
           "prod" {:jdbcUrl (or (config/get-env-var "JDBC_DATABASE_URL")
                                (throw (ex-info "JDBC_DATABASE_URL not set" {})))}
           (throw (ex-info "Invalid env" {:env env})))
+    :omdb {:url "http://www.omdbapi.com/"
+           :key "5547242"}
     :tmdb {:url "https://api.themoviedb.org/3"
            :key "7197608cef1572f5f9e1c5b184854484"
            :retry-options {:initial-wait 0
