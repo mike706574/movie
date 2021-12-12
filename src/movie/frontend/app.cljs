@@ -420,7 +420,8 @@
                  :on-change #(rf/dispatch [:set-owned %])}))
 
 (defn movie-category-input []
-  (let [category @(rf/subscribe [:category])
+  (let [account @(rf/subscribe [:account])
+        category @(rf/subscribe [:category])
         kids? (= category "kids")
         letter (when (alphabet/alphabet-map category) category)]
     [:div.row
@@ -447,10 +448,12 @@
                      :value category
                      :target-value "kids"
                      :on-change #(rf/dispatch [:to-category %])}]]
-     [:div.col-auto [owned-select]]
-     [:div.col-auto [unowned-select]]
-     [:div.col-auto [watched-select]]
-     [:div.col-auto [unwatched-select]]]))
+     (when account
+       [:<>
+        [:div.col-auto [owned-select]]
+        [:div.col-auto [unowned-select]]
+        [:div.col-auto [watched-select]]
+        [:div.col-auto [unwatched-select]]])]))
 
 (defn page-range [page-number page-count]
   (let [lo (max 1 (dec page-number))
