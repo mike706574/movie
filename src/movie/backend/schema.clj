@@ -24,7 +24,10 @@
    [:tmdb-title [:maybe string?]]
    [:tmdb-popularity [:maybe decimal?]]
    [:tmdb-backdrop-path [:maybe string?]]
-   [:tmdb-poster-path [:maybe string?]]])
+   [:tmdb-poster-path [:maybe string?]]
+   [:imdb-rating [:maybe decimal?]]
+   [:imdb-votes [:maybe int?]]
+   [:metascore [:maybe int?]]])
 
 (def movie-model
   (with-audit

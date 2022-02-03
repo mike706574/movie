@@ -53,10 +53,11 @@
     ["/movies" {:get {:parameters {}
                       :responses {200 {:body [:sequential s/movie-model]}}
                       :handler (fn [{identity :identity}]
-                                 {:status 200
-                                  :body (if identity
-                                          (repo/list-account-movies db (:email identity))
-                                          (repo/list-movies db))})}
+                                 (let [movies (if identity
+                                              (repo/list-account-movies db (:email identity))
+                                              (repo/list-movies db))]
+                                   {:status 200
+                                    :body movies}))}
 
                 :post {:middleware [mw/auth-required mw/admin-required]
                        :parameters {:body [:sequential any?]}

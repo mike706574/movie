@@ -47,7 +47,7 @@
 (defn clear-movies! [db]
   (db/clear-items! db :movie))
 
-(def movie-fields
+(def base-movie-fields
   [:title
    :category
    :path
@@ -63,10 +63,10 @@
    :tmdb-poster-path])
 
 (defn insert-movies! [db movies]
-  (db/insert-items! db :movie (conj movie-fields :uuid) movies))
+  (db/insert-items! db :movie (conj base-movie-fields :uuid) movies))
 
-(defn update-movies! [db movies]
-  (db/update-items! db :movie :uuid movie-fields movies))
+(defn update-movies! [db fields movies]
+  (db/update-items! db :movie :uuid fields movies))
 
 (defn update-account-movie! [db uuid email fields]
   (jdbc/with-transaction [tx db]
@@ -82,6 +82,14 @@
     (let [{:keys [owned]} (get-account-movie db email {:uuid uuid})]
       (update-account-movie! db uuid email {:owned owned :watched true :rating rating}))))
 
+(def extra-movie-fields
+  [:imdb-rating
+   :imdb-votes
+   :metascore])
+
+(defn update-extra-movie-info! [db movies]
+  (db/update-items! db :movie :uuid extra-movie-fields movies))
+
 (defn sync-movies! [db movies]
   (let [stored-movies (list-movies db)
         stored-uuids (->> stored-movies
@@ -94,7 +102,7 @@
                            :else :new-movies))
         {:keys [invalid-movies existing-movies new-movies]} (group-by classify-movie movies)]
     (insert-movies! db new-movies)
-    (update-movies! db existing-movies)
+    (update-movies! db base-movie-fields existing-movies)
     {:invalid-movie-count (count invalid-movies)
      :invalid-movie-titles (mapv :title invalid-movies)
      :new-movie-count (count new-movies)

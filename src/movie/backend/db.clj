@@ -99,6 +99,22 @@ WHERE table_schema !~ '^pg_' AND table_schema <> 'information_schema'")
   [db key]
   (contains? (list-tables db) key))
 
+(def views-sql "SELECT table_schema AS schema,
+  table_name AS name
+FROM information_schema.views
+WHERE table_schema !~ '^pg_' AND table_schema <> 'information_schema'")
+
+(defn list-views
+  "Returns a set containing the table key of all non-system views in a database. A table key is a map containing the keys :schema and :name."
+  [db]
+  (set (jdbc/execute! db [views-sql])))
+
+(defn get-view-definition
+  ([db name]
+   (get-view-definition db "public" name))
+  ([db schema name]
+   (:sql (jdbc/execute-one! db [(str "SELECT pg_get_viewdef('" schema "." name "') AS sql")]))))
+
 (def columns-sql "SELECT table_schema AS schema,
   table_name AS table,
   column_name AS name,

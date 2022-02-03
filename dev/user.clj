@@ -70,7 +70,7 @@
 (def tmdb (tmdb/new-client (:tmdb config)))
 
 (def cli-config (cli-config/config {:env "dev" :password admin-password}))
-(def deps (cli-config/deps cli-config))
+(def cli-deps (cli-config/deps cli-config))
 
 (def client (client/new-client (:client cli-config)))
 
@@ -106,20 +106,20 @@
   (db/reset db)
   (register-users)
   (storage/mock-movie-dirs! test-dir (repeatedly 200 rand-movie))
-  (core/seed-movies! deps))
+  (core/seed-movies! cli-deps))
 
 (defn sim-1 []
   (db/reset db)
   (register-users)
   (storage/mock-movie-dirs! test-dir test-movies)
-  (core/sync-movies! deps))
+  (core/sync-movies! cli-deps))
 
 (defn sim-2 []
   (storage/mock-movie-dir! test-dir new-test-movie)
-  (core/sync-movies! deps))
+  (core/sync-movies! cli-deps))
 
 (defn sim-3 []
-  (core/sync-movies! deps))
+  (core/sync-movies! cli-deps))
 
 (defn truncate [value places]
   (let [factor (.pow (BigInteger. "10") places)]
@@ -132,7 +132,50 @@
   (doseq [movie (repo/list-movies db)]
     (repo/rate-movie! db (:uuid movie) "mike" (rand-rating))))
 
+(defn value-present? [value]
+  (and (not (str/blank? value)) (not= value "N/A")))
+
+(defn augment-movie [deps movie]
+  (let [{:keys [omdb-client]} deps
+        {:keys [uuid imdb-id]} movie]
+    (let [{metascore :Metascore
+           imdb-rating :imdbRating
+           imdb-votes :imdbVotes} (:body (omdb/get-movie omdb-client imdb-id))]
+      (merge movie
+             {:metascore (when (value-present? metascore) (Integer/parseInt metascore))
+              :imdb-rating (when (value-present? imdb-rating) (Double/parseDouble imdb-rating))
+              :imdb-votes (when (value-present? imdb-votes)
+                            (Integer/parseInt (str/replace imdb-votes #"," "")))}))))
+
+(defn augment-movies! [{db :db :as deps}]
+  (let [{db :db} deps
+        stored-movies (repo/list-movies db)
+        augmented-movies (map
+                          (fn [movie]
+                            (println "Processing movie" (:uuid movie))
+                            (augment-movie deps movie))
+                          stored-movies)]
+    (println "Updating" (count augmented-movies) "movies")
+    (repo/update-movies! db repo/extra-movie-fields augmented-movies)))
+
 (comment
+  (def omdb-client (omdb/new-client {:type "api"
+                                     :url "http://www.omdbapi.com/"
+                                     :key "5547242"}))
+
+  (def prod-deps {:db prod-db :omdb-client omdb-client})
+
+  (def dev-deps {:db db :omdb-client omdb-client})
+
+  (repo/update-movies! prod-db repo/extra-movie-fields z)
+
+  (augment-movies! dev-deps)
+
+  (repo/list-account-movies prod-db "mike706574@gmail.com")
+  (augment-movies! deps)
+
+  (repo/update-movies! prod-db repo/extra-movie-fields [(augment-movie deps (repo/get-movie prod-db {:title "Akira"}))])
+
   ;; tmdb
   (tmdb/get-config tmdb)
   (-> (tmdb/get-movie tmdb 185) :body keys set)
@@ -150,19 +193,17 @@
 
   (tmdb/get-movie tmdb 10020)
 
-  (def omdb-client (omdb/new-client {:type "api"
-                                     :url "http://www.omdbapi.com/"
-                                     :key "5547242"}))
-
-  (omdb/get-movie omdb-client "tt0101414")
 
   ;; db
   (db/migrate db)
   (db/rollback db)
+  (db/list-views db)
   (db/collect-tables db)
-  (db/migrations db)
+  (db/migrations prod-db)
   (db/reset db)
+  (db/get-view-definition db "movie_view")
 
+  (db/list-columns db)
   (jdbc/execute! db ["SELECT * FROM schema_migrations"])
 
   ;; storage
@@ -173,6 +214,7 @@
   (storage/read-root-dir "movies/adults")
 
   ;; repo
+  (repo/list-movies prod-db)
   (repo/list-account-movies db "mike")
   (repo/get-account-with-password db {:email "mike"})
   (repo/get-account db {:email "mike"})
@@ -180,7 +222,7 @@
   (repo/insert-movies! db (storage/read-movies-dir test-dir))
   (repo/list-movies db)
 
-  (def akira (:uuid (repo/get-movie db {:title "Akira"})))
+  (def akira (:uuid (repo/get-movie prod-db {:title "Akira"})))
 
   (repo/get-movie db {:uuid akira})
   (repo/get-movie-id db akira)
@@ -193,6 +235,26 @@
 
   (repo/get-account-movie db "mike" )
 
+
+  (omdb/get-movie omdb-client "tt0101414")
+
+
+  (let [movies (repo/list-movies db)
+        params (mapv
+                (fn [{:keys [uuid imdb-id]}]
+                  (let [{metascore :Metascore
+                         imdb-rating :imdbRating
+                         imdb-votes :imdbVotes} (:body (omdb/get-movie omdb-client imdb-id))]
+                    {:uuid uuid
+                     :metascore metascore
+                     :imdb-rating imdb-rating
+                     :imdb-votes imdb-votes}))
+                movies)]
+    (jdbc/execute-batch! db "UPDATE movie SET imdb_rating = ? WHERE movie_id = ?" params {})
+    params
+    )
+
+  (class (dec ))
 
   (def movies (repo/list-account-movies prod-db "mike706574@gmail.com"))
 
@@ -209,8 +271,8 @@
   (client/sync-movies! client (storage/read-movies-dir test-dir))
 
   ;; core
-  (core/sync-movies! deps)
-  (core/list-movies deps)
+  (core/sync-movies! cli-deps)
+  (core/list-movies cli-deps)
 
   )
 
@@ -234,8 +296,7 @@
 
   (db/migrate prod-db)
 
-
   (storage/category-path "movies/kids" "kids")
-  (jdbc/execute! prod-db ["SELECT * FROM schema_migrations"])
+  (jdbc/execute! prod-db ["SELECT * FROM movie"])
 
   )

@@ -12,7 +12,7 @@ $$ language 'plpgsql';
 --;;
 CREATE TABLE account (
   account_id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  email TEXT NOT NULL UNIQUE,
+  email TEXT NOT NULL UNIQUE,b
   password TEXT NOT NULL,
   created TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   modified TIMESTAMPTZ

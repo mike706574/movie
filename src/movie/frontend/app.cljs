@@ -3,10 +3,12 @@
             [clojure.string :as str]
             [day8.re-frame.http-fx]
             [movie.frontend.alphabet :as alphabet]
+            [movie.frontend.icons :as icons]
             [movie.frontend.storage :as storage]
             [movie.frontend.nav :as nav]
             [movie.frontend.request :as req]
             [movie.frontend.routing :as routing]
+            [movie.frontend.table :as table]
             [movie.frontend.util :as util]
             [reagent.core :as r]
             [reagent.dom :as rd]
@@ -15,29 +17,7 @@
 ;; -- Development
 (enable-console-print!)
 
-;; -- Icons
-(def bag-icon
-  [:svg {:xmlns "http://www.w3.org/2000/svg", :width "16", :height "16", :fill "currentColor", :class "bi bi-bag", :viewBox "0 0 16 16"}
-   [:path {:d "M8 1a2.5 2.5 0 0 1 2.5 2.5V4h-5v-.5A2.5 2.5 0 0 1 8 1zm3.5 3v-.5a3.5 3.5 0 1 0-7 0V4H1v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V4h-3.5zM2 5h12v9a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V5z"}]])
-
-(def bag-check-icon
-  [:svg {:xmlns "http://www.w3.org/2000/svg", :width "16", :height "16", :fill "currentColor", :class "bi bi-bag-check", :viewBox "0 0 16 16"}
-   [:path {:fill-rule "evenodd", :d "M10.854 8.146a.5.5 0 0 1 0 .708l-3 3a.5.5 0 0 1-.708 0l-1.5-1.5a.5.5 0 0 1 .708-.708L7.5 10.793l2.646-2.647a.5.5 0 0 1 .708 0z"}]
-   [:path {:d "M8 1a2.5 2.5 0 0 1 2.5 2.5V4h-5v-.5A2.5 2.5 0 0 1 8 1zm3.5 3v-.5a3.5 3.5 0 1 0-7 0V4H1v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V4h-3.5zM2 5h12v9a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V5z"}]])
-
-(def eye-icon
-  [:svg {:xmlns "http://www.w3.org/2000/svg", :width "16", :height "16", :fill "currentColor", :class "bi bi-eye", :viewBox "0 0 16 16"}
-   [:path {:d "M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8zM1.173 8a13.133 13.133 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.133 13.133 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5c-2.12 0-3.879-1.168-5.168-2.457A13.134 13.134 0 0 1 1.172 8z"}]
-   [:path {:d "M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0z"}]])
-
-(def eye-slash-icon
-  [:svg {:xmlns "http://www.w3.org/2000/svg", :width "16", :height "16", :fill "currentColor", :class "bi bi-eye-slash", :viewBox "0 0 16 16"}
-   [:path {:d "M13.359 11.238C15.06 9.72 16 8 16 8s-3-5.5-8-5.5a7.028 7.028 0 0 0-2.79.588l.77.771A5.944 5.944 0 0 1 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.134 13.134 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755-.165.165-.337.328-.517.486l.708.709z"}]
-   [:path {:d "M11.297 9.176a3.5 3.5 0 0 0-4.474-4.474l.823.823a2.5 2.5 0 0 1 2.829 2.829l.822.822zm-2.943 1.299.822.822a3.5 3.5 0 0 1-4.474-4.474l.823.823a2.5 2.5 0 0 0 2.829 2.829z"}]
-   [:path {:d "M3.35 5.47c-.18.16-.353.322-.518.487A13.134 13.134 0 0 0 1.172 8l.195.288c.335.48.83 1.12 1.465 1.755C4.121 11.332 5.881 12.5 8 12.5c.716 0 1.39-.133 2.02-.36l.77.772A7.029 7.029 0 0 1 8 13.5C3 13.5 0 8 0 8s.939-1.721 2.641-3.238l.708.709zm10.296 8.884-12-12 .708-.708 12 12-.708.708z"}]])
-
 ;; -- Event Handlers --
-
 (rf/reg-event-db
  :initialize
  (fn [db [_ account]]
@@ -48,6 +28,7 @@
            :error nil
            :page-number nil
            :category nil
+           :table false
            :watched nil
            :owned nil
            :movies nil
@@ -184,6 +165,12 @@
  (fn [db [_ new-category]]
    (assoc db :category new-category :page-number 1)))
 
+;; Movie category
+(rf/reg-event-db
+ :set-table
+ (fn [db [_ new-table]]
+   (assoc db :table new-table)))
+
 ;; Watched
 (rf/reg-event-db
  :set-watched
@@ -260,7 +247,7 @@
 (def page-size 12)
 
 (defn filter-movies
-  [{:keys [category owned watched movie-filter-text movies page-number]}]
+  [{:keys [category owned watched movie-filter-text movies]}]
   (let [category-filter (if category
                           #(= (:category %) category)
                           (constantly true))
@@ -278,7 +265,13 @@
                              (filter title-filter)
                              (filter watched-filter)
                              (filter owned-filter)
-                             (into []))
+                             (into []))]
+    {:movies filtered-movies}))
+
+
+(defn filter-and-paginate-movies
+  [{page-number :page-number :as db}]
+  (let [{filtered-movies :movies} (filter-movies db)
         movie-count (count filtered-movies)
         page-count (max 1 (quot movie-count page-size))
         page-index (if page-number
@@ -292,9 +285,14 @@
      :movies page-movies}))
 
 (rf/reg-sub
-  :page
+  :filtered-movies
   (fn [db _]
     (filter-movies db)))
+
+(rf/reg-sub
+  :paginated-movies
+  (fn [db _]
+    (filter-and-paginate-movies db)))
 
 (rf/reg-sub
   :movie-filter-text
@@ -305,6 +303,11 @@
   :category
   (fn [db _]
     (:category db)))
+
+(rf/reg-sub
+  :table
+  (fn [db _]
+    (:table db)))
 
 (rf/reg-sub
   :watched
@@ -337,7 +340,7 @@
                         #(do (rf/dispatch [:update-movie uuid {:owned owned :watched false :rating nil}])
                              (reset! rating-atom ""))
                         #(rf/dispatch [:update-movie uuid {:owned owned :watched true :rating nil}]))}
-           (if watched eye-icon eye-slash-icon)]]
+           (if watched icons/eye-icon icons/eye-slash-icon)]]
          [:div.col-auto
           [:input {:type "text"
                    :value value
@@ -351,8 +354,7 @@
                    :on-change #(let [value (-> % .-target .-value)]
                                  (reset! rating-atom value)
                                  (when (valid-rating? value)
-                                   (rf/dispatch [:update-movie uuid {:owned owned :watched true :rating (js/parseFloat value)}])))}]]]
-))))
+                                   (rf/dispatch [:update-movie uuid {:owned owned :watched true :rating (js/parseFloat value)}])))}]]]))))
 
 (defn owned-form []
   (fn [{:keys [uuid owned watched rating] :as movie}]
@@ -360,11 +362,11 @@
       [:div.col-auto
        [:button.btn.btn-primary
         {:on-click #(rf/dispatch [:update-movie uuid {:owned false :watched watched :rating rating}])}
-        bag-check-icon]]
+        icons/bag-check-icon]]
       [:div.col-auto
        [:button.btn.btn-secondary
         {:on-click #(rf/dispatch [:update-movie uuid {:owned true :watched watched :rating rating}])}
-        bag-icon]])))
+        icons/bag-icon]])))
 
 (defn movie-item [{:keys [movie-path]}]
   [:li {:key movie-path} movie-path])
@@ -419,12 +421,12 @@
                  :target-value false
                  :on-change #(rf/dispatch [:set-owned %])}))
 
-(defn movie-category-input []
+(defn movie-category-cols []
   (let [account @(rf/subscribe [:account])
         category @(rf/subscribe [:category])
         kids? (= category "kids")
         letter (when (alphabet/alphabet-map category) category)]
-    [:div.row
+    [:<>
      [:div.col-auto
       (let [defaulted-letter (or letter "a")
             [before-previous previous] (alphabet/take-before 2 defaulted-letter)
@@ -454,6 +456,13 @@
         [:div.col-auto [unowned-select]]
         [:div.col-auto [watched-select]]
         [:div.col-auto [unwatched-select]]])]))
+
+(defn movie-table-select []
+  [:div.col-auto
+   (value-select {:label "Table"
+                  :value @(rf/subscribe [:table])
+                  :target-value true
+                  :on-change #(rf/dispatch [:set-table %])})])
 
 (defn page-range [page-number page-count]
   (let [lo (max 1 (dec page-number))
@@ -491,7 +500,7 @@
     elements))
 
 (defn movie-pagination []
-  (let [{:keys [page-number page-count filtered-movie-count]} @(rf/subscribe [:page])]
+  (let [{:keys [page-number page-count filtered-movie-count]} @(rf/subscribe [:paginated-movies])]
     (when-not (zero? filtered-movie-count)
       [:ul.pagination
        [nav/link {:label "«"
@@ -516,56 +525,118 @@
     (str (str/trim (str/join (take length string))) "...")
     string))
 
-(defn movies []
-  (let [movies (:movies @(rf/subscribe [:page]))
-        account @(rf/subscribe [:account])]
-    (if (empty? movies)
-      [:div.text-center.mt-5.mb-5
-       [:h3 "No movies found."]]
-      [:div.row.row-cols-1.row-cols-md-3.g-4.mb-3
-       (for [{:keys [title
-                     uuid
-                     overview
-                     tmdb-backdrop-path
-                     release-date
-                     watched] :as movie} movies]
-         [:div.col {:key uuid}
-          [:div.card
-           [:a {:href (routing/href :movie {:uuid uuid})
-                :style {"textDecoration" "none"
-                        "color" "#000"}}
-            (if tmdb-backdrop-path
-              [:img.card-img-top
-               {:src (str "http://image.tmdb.org/t/p/w300" tmdb-backdrop-path)
-                :style {"display" "block"
-                        "height" "auto"}
-                :alt title}]
-              [:div {:style {"backgroundColor" "#eee"
-                             "display" "flex"
-                             "height" "169px"
-                             "width" "100%"}}
-               [:h5 {:style {"alignSelf" "center"
-                             "textAlign" "center"
-                             "width" "100%"}}
-                title]])]
-           [:div.card-body
-            [:h5.card-title
-             {:style {"display" "inline"}}
-             [:a {:href (routing/href :movie {:uuid uuid})} title]]
-            (when release-date
-              [:h6.card-subtitle.text-muted
-               {:style {"display" "inline" "marginLeft" "0.25em"}}
-               release-date])
-            [:p.card-text (if overview
-                            (ellipsis 150 overview)
-                            "No overview available.")]
-            (when account
-              [:div.row.g-1
-               [owned-form movie]
-               [rating-form movie]])]]])])))
+(def front-movie-cols
+  [{:key "number"
+    :label "#"
+    :render #(inc (:idx %))}
+   {:key "title"
+    :label "Title"
+    :render (fn [{{:keys [title uuid]} :row}]
+              [:a {:href (routing/href :movie {:uuid uuid})} title])}
+   {:key "release-date"
+    :label "Released"
+    :path :release-date
+    :format #(or % "Unknown")}
+   {:key "runtime"
+    :label "Runtime"
+    :path :runtime
+    :format #(or % "Unknown")}])
+
+(def back-movie-cols
+  [{:key "average-rating"
+    :label "Average Rating"
+    :path :average-rating
+    :format #(or % "Not rated")}
+   {:key "imdb-rating"
+    :label "IMDB Rating"
+    :path :imdb-rating}
+   {:key "imdb-votes"
+    :label "IMDB Votes"
+    :path :imdb-votes}
+   {:key "metascore"
+    :label "Metascore"
+    :path :imdb-votes}
+   {:key "category"
+    :label "Category"
+    :path :category}])
+
+(def movie-cols
+  (concat front-movie-cols back-movie-cols))
+
+(def account-movie-cols
+  (concat
+   front-movie-cols
+   [{:key "owned"
+     :label "Owned"
+     :path :owned
+     :format #(if % "Yes" "No")}
+    {:key "watched"
+     :label "Watched"
+     :path :watched
+     :format #(if % "Yes" "No")}
+    {:key "rating"
+     :label "Rating"
+     :path :rating
+     :format #(or % "Not rated")}]
+   back-movie-cols))
+
+(defn movie-table [{:keys [movies account]}]
+  (let [movies (:movies @(rf/subscribe [:filtered-movies]))
+        account @(rf/subscribe [:account])
+        cols (if account
+               account-movie-cols
+               movie-cols)]
+    [table/responsive-table {:cols cols
+                             :style {"marginBottom" "1rem"
+                                     "textAlign" "center"}
+                             :rows movies
+                             :row-key :uuid}]))
+
+(defn movie-cards [{:keys [movies account]}]
+  [:div.row.row-cols-1.row-cols-md-3.g-4.mb-3
+   (for [{:keys [title
+                 uuid
+                 overview
+                 tmdb-backdrop-path
+                 release-date
+                 watched] :as movie} movies]
+     [:div.col {:key uuid}
+      [:div.card
+       [:a {:href (routing/href :movie {:uuid uuid})
+            :style {"textDecoration" "none"
+                    "color" "#000"}}
+        (if tmdb-backdrop-path
+          [:img.card-img-top
+           {:src (str "http://image.tmdb.org/t/p/w300" tmdb-backdrop-path)
+            :style {"display" "block"
+                    "height" "auto"}
+            :alt title}]
+          [:div {:style {"backgroundColor" "#eee"
+                         "display" "flex"
+                         "height" "169px"
+                         "width" "100%"}}
+           [:h5 {:style {"alignSelf" "center"
+                         "textAlign" "center"
+                         "width" "100%"}}
+            title]])]
+       [:div.card-body
+        [:h5.card-title
+         {:style {"display" "inline"}}
+         [:a {:href (routing/href :movie {:uuid uuid})} title]]
+        (when release-date
+          [:h6.card-subtitle.text-muted
+           {:style {"display" "inline" "marginLeft" "0.25em"}}
+           release-date])
+        [:p.card-text (if overview
+                        (ellipsis 150 overview)
+                        "No overview available.")]
+        (when account
+          [:div.row.g-1
+           [owned-form movie]
+           [rating-form movie]])]]])])
 
 (defn movie-page []
-  (let [{:keys [average-rating category title overview tmdb-poster-path tmdb-id imdb-id release-date runtime uuid owned watched rating] :as movie} @(rf/subscribe [:movie])
+  (let [{:keys [average-rating category title overview tmdb-poster-path tmdb-id imdb-id release-date runtime uuid owned watched rating imdb-rating imdb-votes metascore] :as movie} @(rf/subscribe [:movie])
         account @(rf/subscribe [:account])]
     (when movie
       [:<>
@@ -619,6 +690,15 @@
             [:tr
              [:th {:scope "row"} "UUID"]
              [:td uuid]]
+            [:tr
+             [:th {:scope "row"} "IMDB Rating"]
+             [:td imdb-rating]]
+            [:tr
+             [:th {:scope "row"} "IMDB Votes"]
+             [:td imdb-votes]]
+            [:tr
+             [:th {:scope "row"} "Metascore"]
+             [:td metascore]]
             [:tr
              [:th {:scope "row"} "Category"]
              [:td (str/capitalize category)]]
@@ -756,11 +836,24 @@
        :else (when current-route
                [(-> current-route :data :view)]))]))
 
+(defn movies []
+  (let [movies (:movies @(rf/subscribe [:paginated-movies]))
+        account @(rf/subscribe [:account])
+        table @(rf/subscribe [:table])]
+    (if (empty? movies)
+      [:div.text-center.mt-5.mb-5
+       [:h3 "No movies found."]]
+      (if table
+        [movie-table {:movies movies :account account}]
+        [movie-cards {:movies movies :account account}]))))
+
 (defn home-page []
   [:<>
    [:p "These are my movies."]
    [:nav
-    [movie-category-input]
+    [:div.row
+     [movie-category-cols]
+     [movie-table-select]]
     [movie-filter-input]
     [movie-pagination]]
    [movies]
