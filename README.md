@@ -12,17 +12,28 @@ Start the frontend:
 npx shadow-cljs watch frontend
 ```
 
-Start the backend without a REPL:
-
-```
-lein run
-```
-
-Start the backend with a REPL:
+Start a backend REPL:
 
 ```
 lein repl
 (load-file "dev/user.clj")
+```
+
+Run migrations:
+
+```
+(migrate)
+```
+
+Start the backend:
+
+```
+(start)
+```
+
+Restart the backend:
+
+```
 (reset)
 ```
 
